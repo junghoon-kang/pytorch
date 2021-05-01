@@ -3,9 +3,14 @@ import numpy as np
 import albumentations as A
 
 
-class RandomCropSmallDefect(A.DualTransform):
+__all__ = [
+    'RandomCropNearDefect',
+]
+
+
+class RandomCropNearDefect(A.DualTransform):
     def __init__(self, size=(128,128), coverage_ratio=0.6, always_apply=False, p=1):
-        super(RandomCropSmallDefect, self).__init__(always_apply, p)
+        super(RandomCropNearDefect, self).__init__(always_apply, p)
         if not (isinstance(size, tuple) or isinstance(size, list)):
             raise TypeError('size should be list or tuple.')
         if len(size) != 2:
@@ -22,21 +27,18 @@ class RandomCropSmallDefect(A.DualTransform):
         return ['image', 'mask']
 
     def get_params_dependent_on_targets(self, params):
-        cla_label = 1
-        print(params.keys())
-        if 'mask' not in params:
-            seg_label = None
-        else:
-            seg_label = params['mask']
-
-        if seg_label is None:
-            pivot = tuple(map(lambda l: random.randint(0, l-1), image.shape[0:2]))  # middle pivot
+        seg_label = params['mask']
+        if np.sum(seg_label) == 0:
+            h, w = seg_label.shape[:2]
+            px = random.randint(self.size[0]//2, h - self.size[0]//2)
+            py = random.randint(self.size[1]//2, h - self.size[1]//2)
+            pivot = (px, py)  # middle pivot
         else:
             coverage_size = tuple(map(lambda l: int(l*self.coverage_ratio), self.size))
             coverage_pivot = tuple(map(lambda l: random.randint(0, l-1) if l != 0 else 0, coverage_size))
             dh = coverage_pivot[0] - (coverage_size[0] - 1) // 2
             dw = coverage_pivot[1] - (coverage_size[1] - 1) // 2
-            indices = np.where(seg_label == cla_label)
+            indices = np.where(seg_label != 0)
             i = random.randint(0, len(indices[0])-1)
             defect_pivot = (indices[0][i], indices[1][i])
             pivot = (defect_pivot[0] - dh, defect_pivot[1] - dw)
@@ -102,28 +104,18 @@ if __name__ == '__main__':
     idx = 0
     image = skimage.io.imread(path + '/image/{}'.format(names[idx]))
     image = np.dstack((image,)*3)
-    cla_label = 1
     seg_label = skimage.io.imread(path + '/mask/labeler.2class/{}'.format(names[idx]))
+    black = np.zeros((512,512), dtype=np.uint8)
 
-    def RandomCropSmallDefect_test():
-        result = RandomCropSmallDefect(
-            size = (128,128),
-            coverage_ratio = 0.6
-        )(image=image, mask=seg_label)
-        x = result['image']
-        y = result['mask']
-        y[np.where(y == 0)] = 255
-        y[np.where(y == 1)] = 0
-        skimage.io.imsave('temp1.png', x)
-        skimage.io.imsave('temp2.png', y)
-        os.system('eog *.png')
-        os.system('rm *.png')
-    #RandomCropSmallDefect_test()
-
-    def combined():
+    def RandomCropNearDefect_test():
         result = A.Compose([
             A.HorizontalFlip(p=1),
-            A.VerticalFlip(p=1)
+            A.VerticalFlip(p=1),
+            RandomCropNearDefect(
+                size = (128,128),
+                coverage_ratio = 0.6
+            )
+        #])(image=image, mask=black)
         ])(image=image, mask=seg_label)
         x = result['image']
         y = result['mask']
@@ -133,4 +125,4 @@ if __name__ == '__main__':
         skimage.io.imsave('temp2.png', y)
         os.system('eog *.png')
         os.system('rm *.png')
-    combined()
+    #RandomCropNearDefect_test()
