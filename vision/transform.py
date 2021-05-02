@@ -5,6 +5,7 @@ import albumentations as A
 
 __all__ = [
     'RandomCropNearDefect',
+    'To3channel',
 ]
 
 
@@ -38,7 +39,7 @@ class RandomCropNearDefect(A.DualTransform):
             coverage_pivot = tuple(map(lambda l: random.randint(0, l-1) if l != 0 else 0, coverage_size))
             dh = coverage_pivot[0] - (coverage_size[0] - 1) // 2
             dw = coverage_pivot[1] - (coverage_size[1] - 1) // 2
-            indices = np.where(seg_label != 0)
+            indices = np.where(seg_label != 0)  # TODO: handle the case when there are more than one defect classes by random cropping near the specific defect class
             i = random.randint(0, len(indices[0])-1)
             defect_pivot = (indices[0][i], indices[1][i])
             pivot = (defect_pivot[0] - dh, defect_pivot[1] - dw)
@@ -79,16 +80,26 @@ class RandomCropNearDefect(A.DualTransform):
         x_min, y_min, x_max, y_max = coords
         return A.functional.crop(image, x_min, y_min, x_max, y_max)
 
+class To3channel(A.ImageOnlyTransform):
+    def __init__(self, always_apply=False, p=1):
+        super(To3channel, self).__init__(always_apply, p)
+
+    def apply(self, image, **params):
+        if len(image.shape) != 2:
+            print(len(image.shape))
+            raise ValueError('image should be 1-channel image')
+        return np.dstack((image,)*3)
+
 
 if __name__ == '__main__':
     import os, sys
     import skimage.io
 
     PATH = os.path.dirname(os.path.abspath(__file__))
-    sys.path.insert(0, PATH + '/..')
+    sys.path.insert(0, os.path.join(PATH, '..'))
     import config
 
-    path = f'{config.DATA_DIR}/public/DAGM/original'
+    path = os.path.join(config.DATA_DIR, 'public', 'DAGM', 'original')
     names = [
         'domain1.test.NG.0002.png',
         'domain2.test.NG.0003.png',
@@ -102,9 +113,8 @@ if __name__ == '__main__':
         'domain10.test.NG.0013.png'
     ]
     idx = 0
-    image = skimage.io.imread(path + '/image/{}'.format(names[idx]))
-    image = np.dstack((image,)*3)
-    seg_label = skimage.io.imread(path + '/mask/labeler.2class/{}'.format(names[idx]))
+    image = skimage.io.imread( os.path.join(path, 'image', names[idx]) )
+    seg_label = skimage.io.imread( os.path.join(path, 'mask', 'labeler.2class', names[idx]) )
     black = np.zeros((512,512), dtype=np.uint8)
 
     def RandomCropNearDefect_test():
@@ -126,3 +136,12 @@ if __name__ == '__main__':
         os.system('eog *.png')
         os.system('rm *.png')
     #RandomCropNearDefect_test()
+
+    def To3channel_test():
+        result = A.Compose([
+            To3channel(),
+        ])(image=image, mask=seg_label)
+        x = result['image']
+        y = result['mask']
+        print(x.shape, y.shape)  # (512,512,3) (512,512)
+    #To3channel_test()
