@@ -7,8 +7,6 @@ Evaluator([EvaluationMetrics])
 Model(Network, Criterion, Optimizer, LRScheduler, Regulerizer)  # TODO: SWA, Augmix
 
 Network()
-    ClassificationNetwork()
-    SegmentationNetwork()
 
 Result()
 
