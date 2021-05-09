@@ -5,7 +5,10 @@ from torchvision.models import resnet
 
 __all__ = [
     'ResNet18',
+    'ResNet34',
     'ResNet50',
+    'ResNet101',
+    'ResNet152',
 ]
 
 
@@ -17,11 +20,25 @@ def ResNet18(num_classes=2, pretrained=True):
     net.fc = nn.Linear(net.fc.in_features, num_classes)
     return net
 
-def ResNet50(num_classes=2, pretrained=True):
-    net = resnet.resnet18(pretrained=pretrained)
+def ResNet34(num_classes=2, pretrained=True):
+    net = resnet.resnet34(pretrained=pretrained)
     net.fc = nn.Linear(net.fc.in_features, num_classes)
     return net
 
+def ResNet50(num_classes=2, pretrained=True):
+    net = resnet.resnet50(pretrained=pretrained)
+    net.fc = nn.Linear(net.fc.in_features, num_classes)
+    return net
+
+def ResNet101(num_classes=2, pretrained=True):
+    net = resnet.resnet101(pretrained=pretrained)
+    net.fc = nn.Linear(net.fc.in_features, num_classes)
+    return net
+
+def ResNet152(num_classes=2, pretrained=True):
+    net = resnet.resnet152(pretrained=pretrained)
+    net.fc = nn.Linear(net.fc.in_features, num_classes)
+    return net
 
 if __name__ == '__main__':
     def ResNet_test():
