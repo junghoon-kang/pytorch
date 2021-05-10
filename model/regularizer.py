@@ -15,9 +15,6 @@ class Regularizer(metaclass=ABCMeta):
     def calculate_loss(self, x=None):
         pass
 
-    def clear(self):
-        pass
-
 class L2(Regularizer):
     def __init__(self, model, weight=0.1):
         self.model = model
@@ -71,11 +68,9 @@ class L2FM(Regularizer):
         loss = 0
         for fms, fmt in zip(self.feature_maps_src, self.feature_maps_tgt):
             loss += torch.norm(fmt - fms.detach(), 2) / 2
-        return self.weight * loss
-
-    def clear(self):
         self.feature_maps_src.clear()
         self.feature_maps_tgt.clear()
+        return self.weight * loss
 
 
 if __name__ == '__main__':
