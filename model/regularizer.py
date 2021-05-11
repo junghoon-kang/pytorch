@@ -4,10 +4,10 @@ from abc import ABCMeta, abstractmethod
 
 
 __all__ = [
-    'L2',
-    'L2SP',
-    'L2FM',
-    'DELTA',
+    "L2",
+    "L2SP",
+    "L2FM",
+    "DELTA",
 ]
 
 class Regularizer(metaclass=ABCMeta):
@@ -42,10 +42,10 @@ class L2FM(Regularizer):
     def __init__(
         self, model_src, model_tgt, weight=0.1,
         layers_to_be_hooked=[
-            'features.4.1.conv2',
-            'features.5.1.conv2',
-            'features.6.1.conv2',
-            'features.7.1.conv2',
+            "features.4.1.conv2",
+            "features.5.1.conv2",
+            "features.6.1.conv2",
+            "features.7.1.conv2",
         ]
     ):
         self.model_src = copy.deepcopy(model_src)
@@ -73,7 +73,7 @@ class L2FM(Regularizer):
         return self.weight * loss
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     import torch
     import numpy as np
 
@@ -95,10 +95,10 @@ if __name__ == '__main__':
         reg = L2FM(
             net, net, weight=0.1,
             layers_to_be_hooked=[
-                'layer1.1.conv2',
-                'layer2.1.conv2',
-                'layer3.1.conv2',
-                'layer4.1.conv2',
+                "layer1.1.conv2",
+                "layer2.1.conv2",
+                "layer3.1.conv2",
+                "layer4.1.conv2",
             ]
         )
         x = torch.Tensor( np.zeros((1,3,224,224), dtype=np.float32) )

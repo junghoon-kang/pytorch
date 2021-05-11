@@ -2,7 +2,7 @@ import torchmetrics
 from torchmetrics import Metric
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     import torch
 
     def Accuracy_test():
@@ -20,9 +20,9 @@ if __name__ == '__main__':
     def Recall_test():
         preds = torch.tensor([2,0,2,1])
         trues = torch.tensor([1,1,2,0])
-        recall = torchmetrics.Recall(average='macro', num_classes=3)
+        recall = torchmetrics.Recall(average="macro", num_classes=3)
         print(recall(preds, trues))  # tensor(0.3333)
-        recall = torchmetrics.Recall(average='micro')
+        recall = torchmetrics.Recall(average="micro")
         print(recall(preds, trues))  # tensor(0.2500)
         """
           0 1 2

@@ -4,8 +4,8 @@ from abc import abstractmethod, abstractproperty, ABCMeta
 
 
 __all__ = [
-    'SGD',
-    'Adam',
+    "SGD",
+    "Adam",
 ]
 
 
@@ -19,7 +19,7 @@ class Base(metaclass=ABCMeta):
             lr (float): current learning rate of self (torch.optim.Optimzer)
         """
         for param_group in self.param_groups:
-            lr = param_group['lr']
+            lr = param_group["lr"]
             return lr
 
     def update_lr(self, lr):
@@ -28,7 +28,7 @@ class Base(metaclass=ABCMeta):
             lr (float): new learning rate value for self (torch.optim.Optimizer)
         """
         for param_group in self.param_groups:
-            param_group['lr'] = lr
+            param_group["lr"] = lr
 
 class SGD(optim.SGD, Base):
     """ Implements stochastic gradient descent (optionally with momentum).

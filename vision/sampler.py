@@ -5,7 +5,7 @@ import torch.utils.data
 import torch.distributed
 
 
-__all__ = ['RandomSampler', 'WeightedSampler']
+__all__ = ["RandomSampler", "WeightedSampler"]
 
 def shuffle(*arys):
     """ Shuffles multiple input arrays in the same order.
@@ -88,29 +88,29 @@ class WeightedSampler(torch.utils.data.Sampler):
         return q * subset + random.sample(subset, r)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     import os, sys
     from albumentations.pytorch import ToTensor
 
     PATH = os.path.dirname(os.path.abspath(__file__))
-    sys.path.insert(0, os.path.join(PATH, '..'))
+    sys.path.insert(0, os.path.join(PATH, ".."))
     import config
     from vision.dataset import *
     from vision.transform import *
 
     def WeightedSampler_test():
-        data_dir = os.path.join(config.DATA_DIR, 'public', 'DAGM', 'original')
-        image_path = os.path.join(data_dir, 'image')
-        annotation = os.path.join(data_dir, 'annotation', 'domain1.single_image.2class.json')
-        imageset   = os.path.join(data_dir, 'imageset', 'domain1.single_image.2class')
-        data_file  = os.path.join(imageset, 'public', 'ratio', '100%', 'train.1.txt')
+        data_dir = os.path.join(config.DATA_DIR, "public", "DAGM", "original")
+        image_path = os.path.join(data_dir, "image")
+        annotation = os.path.join(data_dir, "annotation", "domain1.single_image.2class.json")
+        imageset   = os.path.join(data_dir, "imageset", "domain1.single_image.2class")
+        data_file  = os.path.join(imageset, "public", "ratio", "100%", "train.1.txt")
         dataset  = SingleImageClassificationDataset(image_path, annotation, data_file, transforms=[ToTensor()])
 
         sampler = WeightedSampler(weights=[3,1])(dataset)
-        print('subset_sizes')
+        print("subset_sizes")
         for label, subset in enumerate(sampler.subsets):
-            print('{}: {}'.format(label, len(subset)))  # 0: 397, 1: 64
-        print('weighted_subset_sizes')
+            print("{}: {}".format(label, len(subset)))  # 0: 397, 1: 64
+        print("weighted_subset_sizes")
         for label, weighted_subset_size in enumerate(sampler.weighted_subset_sizes):
-            print('{}: {}'.format(label, weighted_subset_size))  # 0: 399, 1: 133
+            print("{}: {}".format(label, weighted_subset_size))  # 0: 399, 1: 133
     #WeightedSampler_test()

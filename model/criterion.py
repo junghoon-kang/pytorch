@@ -2,14 +2,14 @@ import torch.nn as nn
 
 
 __all__ = [
-    'CrossEntropyLoss',
-    'CrossEntropyLoss2d',
+    "CrossEntropyLoss",
+    "CrossEntropyLoss2d",
 ]
 
 
 class CrossEntropyLoss(nn.CrossEntropyLoss):
     def __init__(self, weight=None, temperature_scale=1.):
-        super(CrossEntropyLoss, self).__init__(weight=weight, reduction='sum')
+        super(CrossEntropyLoss, self).__init__(weight=weight, reduction="sum")
         self.t_scale = temerature_scale
 
     def forward(self, pred, true):
@@ -17,7 +17,7 @@ class CrossEntropyLoss(nn.CrossEntropyLoss):
 
 class CrossEntropyLoss2d(nn.CrossEntropyLoss):
     def __init__(self, weight=None, temperature_scale=1.):
-        super(CrossEntropyLoss2d, self).__init__(weight=weight, reduction='sum')
+        super(CrossEntropyLoss2d, self).__init__(weight=weight, reduction="sum")
         self.t_scale = temerature_scale
 
     def forward(self, pred, true):

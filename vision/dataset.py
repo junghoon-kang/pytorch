@@ -8,12 +8,12 @@ import albumentations as A
 
 
 __all__ = [
-    'SingleImageClassificationDataset',
-    'SingleImageSegmentationDataset',
-    'MultiImageClassificationDataset',
-    'MultiImageSegmentationDataset',
-    #'PairImageClassificationDataset',
-    #'PairImageSegmentationDataset',
+    "SingleImageClassificationDataset",
+    "SingleImageSegmentationDataset",
+    "MultiImageClassificationDataset",
+    "MultiImageSegmentationDataset",
+    #"PairImageClassificationDataset",
+    #"PairImageSegmentationDataset",
 ]
 
 
@@ -94,20 +94,20 @@ class SingleImageClassificationDataset(ImageDataset):
     def __init__(self, image_dirpath, annotation_filepath, imageset_filepath, seg_label_dirpath=None, transforms=[], one_hot=False):
         def process_line(line):
             image_filepath = os.path.join(image_dirpath, line)
-            cla_label_list = self.annotation['single_image'][line]['class']
+            cla_label_list = self.annotation["single_image"][line]["class"]
             seg_label_filepath  = None if seg_label_dirpath is None else os.path.join(seg_label_dirpath, line)
             return [ (image_filepath, cla_label, seg_label_filepath) for cla_label in cla_label_list ]
 
-        with open(annotation_filepath, 'r') as f:
+        with open(annotation_filepath, "r") as f:
             self.annotation = json.loads(f.read())
 
-        with open(imageset_filepath, 'r') as f:
+        with open(imageset_filepath, "r") as f:
             self.samples = []
             for line in f.read().splitlines():
                 for tup in process_line(line):
                     self.samples.append(tup)
 
-        self.num_classes = len(self.annotation['classes'])
+        self.num_classes = len(self.annotation["classes"])
         self.transforms = A.Compose(transforms)
 
         self.subsets = self.get_subsets(self.samples, self.num_classes)
@@ -125,7 +125,7 @@ class SingleImageClassificationDataset(ImageDataset):
             transformed = self.transforms(image=image, mask=seg_label)
         else:
             transformed = self.transforms(image=image)
-        image = transformed['image']
+        image = transformed["image"]
 
         if self.one_hot:
             cla_label = self.get_one_hot_cla_label(cla_label)
@@ -140,20 +140,20 @@ class SingleImageSegmentationDataset(ImageDataset):
     def __init__(self, image_dirpath, annotation_filepath, imageset_filepath, seg_label_dirpath, transforms=[], one_hot=False):
         def process_line(line):
             image_filepath = os.path.join(image_dirpath, line)
-            cla_label_list = self.annotation['single_image'][line]['class']
+            cla_label_list = self.annotation["single_image"][line]["class"]
             seg_label_filepath  = os.path.join(seg_label_dirpath, line)
             return [ (image_filepath, cla_label, seg_label_filepath) for cla_label in cla_label_list ]
 
-        with open(annotation_filepath, 'r') as f:
+        with open(annotation_filepath, "r") as f:
             self.annotation = json.loads(f.read())
 
-        with open(imageset_filepath, 'r') as f:
+        with open(imageset_filepath, "r") as f:
             self.samples = []
             for line in f.read().splitlines():
                 for tup in process_line(line):
                     self.samples.append(tup)
 
-        self.num_classes = len(self.annotation['classes'])
+        self.num_classes = len(self.annotation["classes"])
         self.transforms = A.Compose(transforms)
 
         self.subsets = self.get_subsets(self.samples, self.num_classes)
@@ -168,7 +168,7 @@ class SingleImageSegmentationDataset(ImageDataset):
         else:
             seg_label = np.zeros(image.shape[:2], dtype=np.float32)
         transformed = self.transforms(image=image, mask=seg_label)
-        image, seg_label = transformed['image'], transformed['mask']
+        image, seg_label = transformed["image"], transformed["mask"]
 
         if self.one_hot:
             seg_label = self.get_one_hot_seg_label(seg_label)
@@ -183,20 +183,20 @@ class MultiImageClassificationDataset(ImageDataset):
     def __init__(self, image_dirpath, annotation_filepath, imageset_filepath, seg_label_dirpath=None, transforms=[], one_hot=False):
         def process_line(line):
             product_dirpath = os.path.join(image_dirpath, line)
-            cla_label_list = list( self.annotation['multi_image'][line].values() )[0]['class']  # TODO: suppport independent label for each image
+            cla_label_list = list( self.annotation["multi_image"][line].values() )[0]["class"]  # TODO: suppport independent label for each image
             seg_label_filepath = None if seg_label_dirpath is None else os.path.join(seg_label_dirpath, line)
             return [ (product_dirpath, cla_label, seg_label_filepath) for cla_label in cla_label_list ]
 
-        with open(annotation_filepath, 'r') as f:
+        with open(annotation_filepath, "r") as f:
             self.annotation = json.loads(f.read())
 
-        with open(imageset_filepath, 'r') as f:
+        with open(imageset_filepath, "r") as f:
             self.samples = []
             for line in f.read().splitlines():
                 for tup in process_line(line):
                     self.samples.append(tup)
 
-        self.num_classes = len(self.annotation['classes'])
+        self.num_classes = len(self.annotation["classes"])
         self.transforms = A.Compose(transforms)
 
         self.subsets = self.get_subsets(self.samples, self.num_classes)
@@ -204,7 +204,7 @@ class MultiImageClassificationDataset(ImageDataset):
 
     def __getitem__(self, index):
         product_dirpath, cla_label, seg_label_filepath = self.samples[index]
-        product = [ skimage.io.imread(image_filepath) for image_filepath in sorted(glob.glob(os.path.join(product_dirpath, '*'))) ]
+        product = [ skimage.io.imread(image_filepath) for image_filepath in sorted(glob.glob(os.path.join(product_dirpath, "*"))) ]
 
         if seg_label_filepath is not None:
             if os.path.exists(seg_label_filepath):
@@ -215,7 +215,7 @@ class MultiImageClassificationDataset(ImageDataset):
         else:
             seg_label = None
             transformed = self.transforms(image=product)
-        product = transformed['image']
+        product = transformed["image"]
 
         if self.one_hot:
             cla_label = self.get_one_hot_cla_label(cla_label)
@@ -230,20 +230,20 @@ class MultiImageSegmentationDataset(ImageDataset):
     def __init__(self, image_dirpath, annotation_filepath, imageset_filepath, seg_label_dirpath, transforms=[], one_hot=False):
         def process_line(line):
             product_dirpath = os.path.join(image_dirpath, line)
-            cla_label_list = list( self.annotation['multi_image'][line].values() )[0]['class']  # TODO: suppport independent label for each image
+            cla_label_list = list( self.annotation["multi_image"][line].values() )[0]["class"]  # TODO: suppport independent label for each image
             seg_label_filepath = os.path.join(seg_label_dirpath, line)
             return [ (product_dirpath, cla_label, seg_label_filepath) for cla_label in cla_label_list ]
 
-        with open(annotation_filepath, 'r') as f:
+        with open(annotation_filepath, "r") as f:
             self.annotation = json.loads(f.read())
 
-        with open(imageset_filepath, 'r') as f:
+        with open(imageset_filepath, "r") as f:
             self.samples = []
             for line in f.read().splitlines():
                 for tup in process_line(line):
                     self.samples.append(tup)
 
-        self.num_classes = len(self.annotation['classes'])
+        self.num_classes = len(self.annotation["classes"])
         self.transforms = Compose(transforms)
 
         self.subsets = self.get_subsets(self.samples, self.num_classes)
@@ -251,14 +251,14 @@ class MultiImageSegmentationDataset(ImageDataset):
 
     def __getitem__(self, index):
         product_dirpath, cla_label, seg_label_filepath = self.samples[index]
-        product = [ skimage.io.imread(image_filepath) for image_filepath in sorted(glob.glob(os.path.join(product_dirpath, '*'))) ]
+        product = [ skimage.io.imread(image_filepath) for image_filepath in sorted(glob.glob(os.path.join(product_dirpath, "*"))) ]
 
         if os.path.exists(seg_label_filepath):
             seg_label = skimage.io.imread(seg_label_filepath)
         else:
             seg_label = np.zeros((image[0].shape[0], image[0].shape[1]), dtype=np.float32)
         transformed = self.transforms(image=product, mask=seg_label)
-        product, seg_label = transformed['image'], transformed['mask']
+        product, seg_label = transformed["image"], transformed["mask"]
 
         if self.one_hot:
             cla_label = self.get_one_hot_seg_label(cla_label)
@@ -269,22 +269,22 @@ class MultiImageSegmentationDataset(ImageDataset):
         return len(self.samples)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     import torch
     from torch.utils.data import DataLoader
     from albumentations.pytorch import ToTensor
 
     import os, sys
     PATH = os.path.dirname(os.path.abspath(__file__))
-    sys.path.insert(0, os.path.join(PATH, '..'))
+    sys.path.insert(0, os.path.join(PATH, ".."))
     import config
     from vision.transform import *
 
-    path = os.path.join(config.DATA_DIR, 'public', 'DAGM', 'original')
-    image_dirpath = os.path.join(path, 'image')
-    annotation_filepath = os.path.join(path, 'annotation', 'domain1.single_image.2class.json')
-    imageset_filepath = os.path.join(path, 'imageset', 'domain1.single_image.2class', 'public', 'ratio', '100%', 'test.txt')
-    seg_label_dirpath = os.path.join(path, 'mask', 'original.2class')
+    path = os.path.join(config.DATA_DIR, "public", "DAGM", "original")
+    image_dirpath = os.path.join(path, "image")
+    annotation_filepath = os.path.join(path, "annotation", "domain1.single_image.2class.json")
+    imageset_filepath = os.path.join(path, "imageset", "domain1.single_image.2class", "public", "ratio", "100%", "test.txt")
+    seg_label_dirpath = os.path.join(path, "mask", "original.2class")
 
     def SingleImageClassificationDataset_test():
         def test1():
@@ -313,9 +313,9 @@ if __name__ == '__main__':
                 pin_memory=True
             )
             for x, y, z in data_loader:
-                print(z)  # ('domain1.test.OK.0373.png', 'domain1.test.NG.0021.png', 'domain1.test.OK.0136.png', 'domain1.test.OK.0227.png')
-                print(type(x), x.size())  # <class 'torch.Tensor'> torch.Size([4, 512, 512])
-                print(type(y), y.size())  # <class 'torch.Tensor'> torch.Size([4])
+                print(z)  # ("domain1.test.OK.0373.png", "domain1.test.NG.0021.png", "domain1.test.OK.0136.png", "domain1.test.OK.0227.png")
+                print(type(x), x.size())  # <class "torch.Tensor"> torch.Size([4, 512, 512])
+                print(type(y), y.size())  # <class "torch.Tensor"> torch.Size([4])
                 break
         test2()
 
@@ -334,9 +334,9 @@ if __name__ == '__main__':
                 pin_memory=True
             )
             for x, y, z in data_loader:
-                print(z)  # ('domain1.test.OK.0373.png', 'domain1.test.NG.0021.png', 'domain1.test.OK.0136.png', 'domain1.test.OK.0227.png')
-                print(type(x), x.size())  # <class 'torch.Tensor'> torch.Size([4, 3, 512, 512])
-                print(type(y), y.size())  # <class 'torch.Tensor'> torch.Size([4])
+                print(z)  # ("domain1.test.OK.0373.png", "domain1.test.NG.0021.png", "domain1.test.OK.0136.png", "domain1.test.OK.0227.png")
+                print(type(x), x.size())  # <class "torch.Tensor"> torch.Size([4, 3, 512, 512])
+                print(type(y), y.size())  # <class "torch.Tensor"> torch.Size([4])
                 break
         test3()
     #SingleImageClassificationDataset_test()
@@ -395,9 +395,9 @@ if __name__ == '__main__':
                 pin_memory=True
             )
             for x, y, name in data_loader:
-                print(name)  # ('domain1.test.OK.0490.png', 'domain1.test.OK.0349.png', 'domain1.test.OK.0196.png', 'domain1.test.OK.0245.png')
-                print(type(x), x.size())  # <class 'torch.Tensor'> torch.Size([4, 512, 512])
-                print(type(y), y.size())  # <class 'torch.Tensor'> torch.Size([4, 1, 512, 512])
+                print(name)  # ("domain1.test.OK.0490.png", "domain1.test.OK.0349.png", "domain1.test.OK.0196.png", "domain1.test.OK.0245.png")
+                print(type(x), x.size())  # <class "torch.Tensor"> torch.Size([4, 512, 512])
+                print(type(y), y.size())  # <class "torch.Tensor"> torch.Size([4, 1, 512, 512])
                 break
         test4()
     #SingleImageSegmentationDataset_test()

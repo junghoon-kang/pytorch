@@ -3,10 +3,10 @@ from torch.optim.lr_scheduler import _LRScheduler
 
 
 __all__ = [
-    'StepLR',
-    'MultiStepLR',
-    'CosineAnnealingWarmRestarts',
-    'WarmupLR',
+    "StepLR",
+    "MultiStepLR",
+    "CosineAnnealingWarmRestarts",
+    "WarmupLR",
 ]
 
 
@@ -76,7 +76,7 @@ class WarmupLR(_LRScheduler):
                     self.next_scheduler.base_lrs = self.base_lrs
                     self.done = True
                     if self.debug:
-                        print('** WARMUP DONE **')
+                        print("** WARMUP DONE **")
                 return self.next_scheduler.get_last_lr()
             return self.base_lrs
         return [ base_lr * ( self.last_epoch / self.warmup_iterations ) for base_lr in self.base_lrs ]
@@ -90,7 +90,7 @@ class WarmupLR(_LRScheduler):
         super(WarmupLR, self).step(epoch)
 
         
-if __name__ == '__main__':
+if __name__ == "__main__":
     import torch
     from torch.optim.sgd import SGD
 
@@ -100,7 +100,7 @@ if __name__ == '__main__':
 
     def run(optimizer, scheduler):
         for epoch in range(40):
-            print(epoch, optimizer.param_groups[0]['lr'])
+            print(epoch, optimizer.param_groups[0]["lr"])
             optimizer.step()
             scheduler.step()
 
