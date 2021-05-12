@@ -7,7 +7,7 @@ __all__ = [
     "L2",
     "L2SP",
     "L2FM",
-    "DELTA",
+    #"DELTA",
 ]
 
 class Regularizer(metaclass=ABCMeta):
@@ -20,7 +20,7 @@ class L2(Regularizer):
         self.model = model
         self.weight = 0.1
 
-    def calculate_loss(self):
+    def calculate_loss(self, x=None):
         loss = 0
         for p in tuple(self.model.parameters()):
             loss += torch.norm(p, 2) / 2
@@ -32,7 +32,7 @@ class L2SP(Regularizer):
         self.model_tgt = model_tgt
         self.weight = weight
 
-    def calculate_loss(self):
+    def calculate_loss(self, x=None):
         loss = 0
         for ps, pt in tuple(zip(self.model_src.parameters(), self.model_tgt.parameters()))[:-2]:
             loss += torch.norm(pt - ps, 2) / 2
