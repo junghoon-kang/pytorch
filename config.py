@@ -1,1 +1,1 @@
-DATA_DIR = '/home/junghoon/Sualab/dataset'
+DATA_DIR = "/home/junghoon/DL/dataset"
