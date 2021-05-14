@@ -1,3 +1,4 @@
+import torch
 import random
 import numpy as np
 import albumentations as A
@@ -10,7 +11,7 @@ __all__ = [
 
 
 class RandomCropNearDefect(A.DualTransform):
-    def __init__(self, size=(128,128), coverage_ratio=0.6, always_apply=False, p=1):
+    def __init__(self, size=(128,128), coverage_size=(128,128), fixed=False, always_apply=False, p=1):
         super(RandomCropNearDefect, self).__init__(always_apply, p)
         if not (isinstance(size, tuple) or isinstance(size, list)):
             raise TypeError("size should be list or tuple.")
@@ -18,10 +19,20 @@ class RandomCropNearDefect(A.DualTransform):
             raise ValueError("size should be list or tuple of size 2.")
         if not (isinstance(size[0], int) and isinstance(size[1], int)):
             raise TypeError("size should be list or tuple of integers.")
-        if not (0 <= coverage_ratio <= 1):
-            raise ValueError("coverage_ratio should be float between 0 and 1.")
+
+        if not (isinstance(coverage_size, tuple) or isinstance(coverage_size, list)):
+            raise TypeError("coverage_size should be list or tuple.")
+        if len(coverage_size) != 2:
+            raise ValueError("coverage_size should be list or tuple of size 2.")
+        if not (isinstance(coverage_size[0], int) and isinstance(coverage_size[1], int)):
+            raise TypeError("coverage_size should be list or tuple of integers.")
+        if coverage_size[0] <= 0 or coverage_size[1] <= 0:
+            raise TypeError("coverage_size should be a positive integer.")
         self.size = size
-        self.coverage_ratio = coverage_ratio
+        self.coverage_size = coverage_size
+        self.fixed = fixed
+        if self.fixed:
+            self.coverage_size = (1,1)
 
     @property
     def targets_as_params(self):
@@ -33,17 +44,22 @@ class RandomCropNearDefect(A.DualTransform):
             h, w = seg_label.shape[:2]
             px = random.randint(self.size[0]//2, h - self.size[0]//2)
             py = random.randint(self.size[1]//2, h - self.size[1]//2)
-            pivot = (px, py)  # middle pivot
+            combined_pivot = (px, py)  # middle pivot
         else:
-            coverage_size = tuple(map(lambda l: int(l*self.coverage_ratio), self.size))
-            coverage_pivot = tuple(map(lambda l: random.randint(0, l-1) if l != 0 else 0, coverage_size))
-            dh = coverage_pivot[0] - (coverage_size[0] - 1) // 2
-            dw = coverage_pivot[1] - (coverage_size[1] - 1) // 2
+            # pick random point from the coverage box
+            coverage_pivot = tuple(map(lambda l: random.randint(0, l-1), self.coverage_size))
+            dh = coverage_pivot[0] - (self.coverage_size[0] - 1) // 2
+            dw = coverage_pivot[1] - (self.coverage_size[1] - 1) // 2
+            # pick random point from defect pixels
             indices = np.where(seg_label != 0)  # TODO: handle the case when there are more than one defect classes by random cropping near the specific defect class
-            i = random.randint(0, len(indices[0])-1)
+            if self.fixed:
+                #i = len(indices[0]) // 2
+                i = 0
+            else:
+                i = random.randint(0, len(indices[0])-1)
             defect_pivot = (indices[0][i], indices[1][i])
-            pivot = (defect_pivot[0] - dh, defect_pivot[1] - dw)
-        coords = self.get_coords_from_pivot(image, pivot, self.size)
+            combined_pivot = (defect_pivot[0] - dh, defect_pivot[1] - dw)
+        coords = self.get_coords_from_pivot(seg_label, combined_pivot, self.size)
         return {"coords": coords}
 
     def get_coords_from_pivot(self, image, pivot, size):
@@ -73,11 +89,11 @@ class RandomCropNearDefect(A.DualTransform):
         return (h1, w1, h2+1, w2+1)
 
     def apply(self, image, coords=(), **params):
-        x_min, y_min, x_max, y_max = coords
+        y_min, x_min, y_max, x_max = coords
         return A.functional.crop(image, x_min, y_min, x_max, y_max)
 
     def apply_to_mask(self, image, coords=(), **params):
-        x_min, y_min, x_max, y_max = coords
+        y_min, x_min, y_max, x_max = coords
         return A.functional.crop(image, x_min, y_min, x_max, y_max)
 
 class To3channel(A.ImageOnlyTransform):
@@ -86,7 +102,6 @@ class To3channel(A.ImageOnlyTransform):
 
     def apply(self, image, **params):
         if len(image.shape) != 2:
-            print(len(image.shape))
             raise ValueError("image should be 1-channel image")
         return np.dstack((image,)*3)
 
@@ -102,6 +117,7 @@ if __name__ == "__main__":
     path = os.path.join(config.DATA_DIR, "public", "DAGM", "original")
     names = [
         "domain1.test.NG.0002.png",
+        #"domain1.train.NG.0616.png",
         "domain2.test.NG.0003.png",
         "domain3.test.NG.0007.png",
         "domain4.test.NG.0022.png",
@@ -123,7 +139,8 @@ if __name__ == "__main__":
             A.VerticalFlip(p=1),
             RandomCropNearDefect(
                 size = (128,128),
-                coverage_ratio = 0.6
+                coverage_size = (1,1),
+                fixed = True
             )
         #])(image=image, mask=black)
         ])(image=image, mask=seg_label)
