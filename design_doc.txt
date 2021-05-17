@@ -5,6 +5,8 @@ Evaluator([EvaluationMetrics])
     evaluate(Model, DataLoader) -> Result path
 
 Model(Network, Criterion, Optimizer, LRScheduler, Regulerizer)  # TODO: SWA, Augmix
+    Classification
+    Segmentation
 
 Network()
 
