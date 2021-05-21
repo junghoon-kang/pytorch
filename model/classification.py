@@ -28,7 +28,7 @@ class Classification(LightningModule):
         loss = self.criterion(y_, y)
         if self.regularizer is not None:
             loss += self.regularizer.calculate_loss()
-        self.log("train_loss", loss, on_step=False, on_epoch=True, logger=True)
+        self.log("train/loss", loss, on_step=False, on_epoch=True, logger=True)
         return loss
 
     def validation_step(self, batch, batch_idx):
@@ -37,12 +37,12 @@ class Classification(LightningModule):
         loss = self.criterion(y_, y)
         prob = F.softmax(y_, dim=1)
         self.metrics.update(prob, y)
-        self.log("val_loss", loss, on_epoch=True, logger=True)
+        self.log("valid/loss", loss, on_epoch=True, logger=True)
 
     def validation_epoch_end(self, outputs):
         results = self.metrics.compute()
         for k, v in sorted(results.items()):
-            self.log(f"val_{k}", v, on_epoch=True, logger=True)
+            self.log(f"valid/{k}", v, on_epoch=True, logger=True)
         self.metrics.reset()
 
     def test_step(self, batch, batch_idx):
@@ -55,7 +55,7 @@ class Classification(LightningModule):
     def test_epoch_end(self, outputs):
         results = self.metrics.compute()
         for k, v in sorted(results.items()):
-            self.log(k, v, logger=True)
+            self.log(f"test/{k}", v, logger=True)
         self.metrics.reset()
 
     def configure_optimizers(self):
