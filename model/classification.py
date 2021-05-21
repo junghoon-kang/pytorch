@@ -49,7 +49,7 @@ class Classification(LightningModule):
         x, y, _ = batch
         y_ = self(x)
         loss = self.criterion(y_, y)
-        prob = F.softmax(y, dim=1)
+        prob = F.softmax(y_, dim=1)
         self.metrics.update(prob, y)
 
     def test_epoch_end(self, outputs):
