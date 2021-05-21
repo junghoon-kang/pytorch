@@ -33,53 +33,69 @@ train_filepath = os.path.join(imageset_dirpath, "train.1.txt")
 valid_filepath = os.path.join(imageset_dirpath, "validation.1.txt")
 test_filepath  = os.path.join(imageset_dirpath, "test.txt")
 
+train_dataset = SingleImageClassificationDataset(
+    image_dirpath, annotation_filepath, train_filepath, seg_label_dirpath,
+    transforms=[
+        A.HorizontalFlip(p=.5),
+        A.VerticalFlip(p=.5),
+        To3channel(),
+        ToTensor(),
+    ]
+)
+valid_dataset = SingleImageClassificationDataset(
+    image_dirpath, annotation_filepath, valid_filepath, seg_label_dirpath,
+    transforms=[
+        To3channel(),
+        ToTensor(),
+    ]
+)
+test_dataset = SingleImageClassificationDataset(
+    image_dirpath, annotation_filepath, test_filepath, seg_label_dirpath,
+    transforms=[
+        To3channel(),
+        ToTensor(),
+    ]
+)
+
+sampler = WeightedSampler([1,1])
+
+train_dataloader = DataLoader(
+    train_dataset,
+    batch_size=32,
+    sampler=sampler(train_dataset),
+    shuffle=False,
+    num_workers=4,
+    pin_memory=True
+)
+
+valid_dataloader = DataLoader(
+    valid_dataset,
+    batch_size=32,
+    shuffle=False,
+    num_workers=4,
+    pin_memory=True
+)
+
+test_dataloader = DataLoader(
+    test_dataset,
+    batch_size=32,
+    shuffle=False,
+    num_workers=4,
+    pin_memory=True
+)
+
+network = ResNet18(num_classes=2)
+criterion = CrossEntropyLoss()
+optimizer = Adam(network.parameters(), lr=0.0001, weight_decay=0.0001)
+scheduler = WarmupLR(
+    optimizer,
+    warmup_iterations=1,
+    next_scheduler=CosineAnnealingWarmRestarts(optimizer, T_0=10)
+)
+regularizer = L2(network, weight=0.1)
+
+
 def train():
-    train_dataset = SingleImageClassificationDataset(
-        image_dirpath, annotation_filepath, train_filepath, seg_label_dirpath,
-        transforms=[
-            A.HorizontalFlip(p=.5),
-            A.VerticalFlip(p=.5),
-            To3channel(),
-            ToTensor(),
-        ]
-    )
-    valid_dataset = SingleImageClassificationDataset(
-        image_dirpath, annotation_filepath, valid_filepath, seg_label_dirpath,
-        transforms=[
-            To3channel(),
-            ToTensor(),
-        ]
-    )
-
-    sampler = WeightedSampler([1,1])
-
-    train_dataloader = DataLoader(
-        train_dataset,
-        batch_size=32,
-        sampler=sampler(train_dataset),
-        shuffle=False,
-        num_workers=4,
-        pin_memory=True
-    )
-
-    valid_dataloader = DataLoader(
-        valid_dataset,
-        batch_size=32,
-        shuffle=False,
-        num_workers=4,
-        pin_memory=True
-    )
-
-    network = ResNet18(num_classes=2)
-    criterion = CrossEntropyLoss()
-    optimizer = Adam(network.parameters(), lr=0.0001, weight_decay=0.0001)
-    scheduler = WarmupLR(
-        optimizer,
-        warmup_iterations=1,
-        next_scheduler=CosineAnnealingWarmRestarts(optimizer, T_0=10)
-    )
-    regularizer = L2(network, weight=0.1)
-
     model = Classification(
         network, criterion, optimizer,
         scheduler=scheduler,
@@ -95,10 +111,10 @@ def train():
     checkpoint_callback = ModelCheckpoint(
         save_top_k=1,
         save_last=True,
-        monitor="val_Recall",
+        monitor="valid/Recall",
         mode="max",
         dirpath=os.path.join(logger.root_dir, f"version_{logger.version}"),
-        filename="{epoch:03d}-{val_Recall:.4f}",
+        filename="{epoch:03d}-{valid/Recall:.4f}",
     )
 
     trainer = Trainer(
@@ -112,35 +128,10 @@ def train():
         min_epochs=1
     )
     trainer.fit(model, train_dataloader, valid_dataloader)
+    trainer.test(model, test_dataloaders=test_dataloader)
 
 
 def evaluate():
-    test_dataset = SingleImageClassificationDataset(
-        image_dirpath, annotation_filepath, test_filepath, seg_label_dirpath,
-        transforms=[
-            To3channel(),
-            ToTensor(),
-        ]
-    )
-
-    test_dataloader = DataLoader(
-        test_dataset,
-        batch_size=32,
-        shuffle=False,
-        num_workers=4,
-        pin_memory=True
-    )
-
-    network = ResNet18(num_classes=2)
-    criterion = CrossEntropyLoss()
-    optimizer = Adam(network.parameters(), lr=0.0001, weight_decay=0.0001)
-    scheduler = WarmupLR(
-        optimizer,
-        warmup_iterations=1,
-        next_scheduler=CosineAnnealingWarmRestarts(optimizer, T_0=10)
-    )
-    regularizer = L2(network, weight=0.1)
-
     model = Classification(
         network, criterion, optimizer,
         scheduler=scheduler,
