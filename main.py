@@ -1,7 +1,12 @@
 import os
-import albumentations as A
+import glob
+
+import torch
 from torch.utils.data import DataLoader
+
+import albumentations as A
 from albumentations.pytorch import ToTensor
+
 from pytorch_lightning import Trainer
 from pytorch_lightning.loggers import TensorBoardLogger
 from pytorch_lightning.callbacks import ModelCheckpoint, LearningRateMonitor
@@ -48,7 +53,7 @@ def train():
 
     sampler = WeightedSampler([1,1])
 
-    train_data_loader = DataLoader(
+    train_dataloader = DataLoader(
         train_dataset,
         batch_size=32,
         sampler=sampler(train_dataset),
@@ -57,7 +62,7 @@ def train():
         pin_memory=True
     )
 
-    valid_data_loader = DataLoader(
+    valid_dataloader = DataLoader(
         valid_dataset,
         batch_size=32,
         shuffle=False,
@@ -84,24 +89,29 @@ def train():
             torchmetrics.Recall(average="macro", num_classes=2),
         ]
     )
+
+    logger=TensorBoardLogger(save_dir="checkpoint", name="main")
+
     checkpoint_callback = ModelCheckpoint(
-        #save_top_k=1,
-        #save_last=True,
-        #monitor="val_Recall",
-        #mode="max",
-        dirpath="./logging/foo"
-        #filename="{epoch:03d}-{val_Recall:.4f}",
+        save_top_k=1,
+        save_last=True,
+        monitor="val_Recall",
+        mode="max",
+        dirpath=os.path.join(logger.root_dir, f"version_{logger.version}"),
+        filename="{epoch:03d}-{val_Recall:.4f}",
     )
+
     trainer = Trainer(
-        logger=TensorBoardLogger(save_dir="./logging", name="foo"),
-        checkpoint_callback=checkpoint_callback,
-        callbacks=[LearningRateMonitor()],
+        logger=logger,
+        callbacks=[
+            LearningRateMonitor(),
+            checkpoint_callback,
+        ],
         gpus=1,
         max_epochs=10,
         min_epochs=1
     )
-    trainer.fit(model, train_data_loader, valid_data_loader)
-    from IPython import embed; embed(); assert False
+    trainer.fit(model, train_dataloader, valid_dataloader)
 
 
 def evaluate():
@@ -113,7 +123,7 @@ def evaluate():
         ]
     )
 
-    test_data_loader = DataLoader(
+    test_dataloader = DataLoader(
         test_dataset,
         batch_size=32,
         shuffle=False,
@@ -140,24 +150,18 @@ def evaluate():
             torchmetrics.Recall(average="macro", num_classes=2),
         ]
     )
-    from IPython import embed; embed(); assert False
 
-    #trainer = Trainer(
-    #    logger=TensorBoardLogger(save_dir="./logging", name="foo"),
-    #    checkpoint_callback=ModelCheckpoint(
-    #        save_top_k=1,
-    #        save_last=True,
-    #        monitor="val_Recall",
-    #        mode="max",
-    #        filename="{epoch:03d}-{val_Recall:.4f}",
-    #    ),
-    #    callbacks=[LearningRateMonitor()],
-    #    gpus=1,
-    #    max_epochs=100,
-    #    min_epochs=1
-    #)
-    #trainer.fit(model, train_data_loader, valid_data_loader)
+    ckpt = torch.load(os.path.join("checkpoint", "main", "version_0", "last.ckpt"))
+    model.load_state_dict(ckpt["state_dict"])
+
+    trainer = Trainer(
+        logger=False,
+        callbacks=None,
+        gpus=1
+    )
+    trainer.test(model, test_dataloaders=test_dataloader)
+
 
 if __name__ == "__main__":
-    train()
-    #evaluate()
+    #train()
+    evaluate()
