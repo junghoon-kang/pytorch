@@ -111,10 +111,10 @@ def train():
     checkpoint_callback = ModelCheckpoint(
         save_top_k=1,
         save_last=True,
-        monitor="valid/Recall",
+        monitor="valid_Recall",
         mode="max",
         dirpath=os.path.join(logger.root_dir, f"version_{logger.version}"),
-        filename="{epoch:03d}-{valid/Recall:.4f}",
+        filename="{epoch:03d}-{valid_Recall:.4f}",
     )
 
     trainer = Trainer(
