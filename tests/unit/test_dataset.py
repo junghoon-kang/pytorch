@@ -1,10 +1,10 @@
+import os, sys
 import pytest
-import numpy as np
 import torch
+import numpy as np
 from torch.utils.data import DataLoader
 from albumentations.pytorch import ToTensorV2 as ToTensor
 
-import os, sys
 PATH = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, os.path.join(PATH, *[".."]*2))
 import config
