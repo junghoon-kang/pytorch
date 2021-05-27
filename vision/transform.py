@@ -1,4 +1,3 @@
-import torch
 import random
 import numpy as np
 import albumentations as A
@@ -104,61 +103,3 @@ class To3channel(A.ImageOnlyTransform):
         if len(image.shape) != 2:
             raise ValueError("image should be 1-channel image")
         return np.dstack((image,)*3)
-
-
-if __name__ == "__main__":
-    import os, sys
-    import skimage.io
-
-    PATH = os.path.dirname(os.path.abspath(__file__))
-    sys.path.insert(0, os.path.join(PATH, ".."))
-    import config
-
-    path = os.path.join(config.DATA_DIR, "public", "DAGM", "original")
-    names = [
-        "domain1.test.NG.0002.png",
-        #"domain1.train.NG.0616.png",
-        "domain2.test.NG.0003.png",
-        "domain3.test.NG.0007.png",
-        "domain4.test.NG.0022.png",
-        "domain5.test.NG.0001.png",
-        "domain6.test.NG.0021.png",
-        "domain7.test.NG.0005.png",
-        "domain8.test.NG.0007.png",
-        "domain9.test.NG.0009.png",
-        "domain10.test.NG.0013.png"
-    ]
-    idx = 0
-    image = skimage.io.imread( os.path.join(path, "image", names[idx]) )
-    seg_label = skimage.io.imread( os.path.join(path, "mask", "labeler.2class", names[idx]) )
-    black = np.zeros((512,512), dtype=np.uint8)
-
-    def RandomCropNearDefect_test():
-        result = A.Compose([
-            A.HorizontalFlip(p=1),
-            A.VerticalFlip(p=1),
-            RandomCropNearDefect(
-                size = (128,128),
-                coverage_size = (1,1),
-                fixed = True
-            )
-        #])(image=image, mask=black)
-        ])(image=image, mask=seg_label)
-        x = result["image"]
-        y = result["mask"]
-        y[np.where(y == 0)] = 255
-        y[np.where(y == 1)] = 0
-        skimage.io.imsave("temp1.png", x)
-        skimage.io.imsave("temp2.png", y)
-        os.system("eog *.png")
-        os.system("rm *.png")
-    #RandomCropNearDefect_test()
-
-    def To3channel_test():
-        result = A.Compose([
-            To3channel(),
-        ])(image=image, mask=seg_label)
-        x = result["image"]
-        y = result["mask"]
-        print(x.shape, y.shape)  # (512,512,3) (512,512)
-    #To3channel_test()
