@@ -1,15 +1,10 @@
 import os, sys
 import glob
 import pytest
-
 import torch
 from torch.utils.data import DataLoader
-
 import albumentations as A
-from albumentations.pytorch import ToTensor
-
 import torchmetrics
-
 from pytorch_lightning import Trainer
 from pytorch_lightning.loggers import TensorBoardLogger
 from pytorch_lightning.callbacks import ModelCheckpoint, LearningRateMonitor
@@ -18,16 +13,13 @@ from pytorch_lightning.callbacks import ModelCheckpoint, LearningRateMonitor
 PATH = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, os.path.join(PATH, *[".."]*2))
 import config
-from vision.transform import *
 from vision.dataset import *
+from vision.transform import *
 from vision.sampler import *
 from model.classification import *
 from model.network.classification.resnet import *
 from model.criterion import *
 from model.optimizer import *
-from model.scheduler import *
-from model.regularizer import *
-from model.metric import *
 
 
 @pytest.fixture
@@ -108,10 +100,13 @@ def model():
     )
     return model
 
-def test_train(model, dataloaders):
-    train_dataloader, valid_dataloader, test_dataloader = dataloaders
+@pytest.fixture
+def logger():
+    logger = TensorBoardLogger(save_dir=os.path.join(PATH, "checkpoint"), name="main")
+    return logger
 
-    logger=TensorBoardLogger(save_dir=os.path.join(PATH, "checkpoint"), name="main")
+def test_train(model, dataloaders, logger):
+    train_dataloader, valid_dataloader, test_dataloader = dataloaders
 
     checkpoint_callback = ModelCheckpoint(
         save_top_k=1,
