@@ -1,3 +1,4 @@
+import torch
 import random
 import numpy as np
 import albumentations as A
@@ -6,6 +7,7 @@ import albumentations as A
 __all__ = [
     "RandomCropNearDefect",
     "To3channel",
+    "ToTensor",
 ]
 
 
@@ -103,3 +105,25 @@ class To3channel(A.ImageOnlyTransform):
         if len(image.shape) != 2:
             raise ValueError("image should be 1-channel image")
         return np.dstack((image,)*3)
+
+class ToTensor(A.BasicTransform):
+    def __init__(self, always_apply=True, p=1.0):
+        super(ToTensor, self).__init__(always_apply=always_apply, p=p)
+
+    @property
+    def targets(self):
+        return {"image": self.apply, "mask": self.apply_to_mask}
+
+    def apply(self, image, **params):
+        if image.ndim == 2:
+            image = np.expand_dims(image, 2)
+        image = image.transpose(2, 0, 1)
+        tensor = torch.from_numpy(image)
+        return tensor.contiguous().float()
+
+    def apply_to_mask(self, mask, **params):
+        tensor = torch.from_numpy(mask)
+        return tensor.contiguous().float()
+
+    def get_params_dependent_on_targets(self, params):
+        return {}
