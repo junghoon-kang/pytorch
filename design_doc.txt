@@ -36,3 +36,6 @@ Sampler()
 
 GradCAM()
     checkpoint(Model, DataLoader) -> checkpoint_path (of mask images)
+
+ActivationMap()
+    checkpoint(Model, DataLoader) -> checkpoint_path (of mask images)
