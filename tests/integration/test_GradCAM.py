@@ -71,8 +71,8 @@ test_dataloader = DataLoader(
     pin_memory=True
 )
 
-network = ResNet18(num_classes=2).cuda(0)
-model = SingleImageGradCAM(network)
+network = ResNet18(num_classes=2)
+model = SingleImageGradCAM(network, layer_name="layer4.1.bn2")
 
 ckpt = torch.load(os.path.join(PATH, "checkpoint", "main", "version_0", "last.ckpt"))
 model.load_state_dict(ckpt["state_dict"])
