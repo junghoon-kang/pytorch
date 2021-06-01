@@ -5,7 +5,6 @@ import torch
 from torch.utils.data import DataLoader
 from pytorch_lightning import Trainer
 
-
 PATH = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, os.path.join(PATH, *[".."]*2))
 import config
