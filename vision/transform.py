@@ -123,7 +123,7 @@ class ToTensor(A.BasicTransform):
 
     def apply_to_mask(self, mask, **params):
         tensor = torch.from_numpy(mask)
-        return tensor.contiguous().float()
+        return tensor.contiguous()
 
     def get_params_dependent_on_targets(self, params):
         return {}
