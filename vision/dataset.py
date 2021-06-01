@@ -3,6 +3,7 @@ import json
 import glob
 import random
 import skimage.io
+import torch
 import numpy as np
 import albumentations as A
 
@@ -50,7 +51,7 @@ class ImageDataset(object):
             subsets[cla_label].append(i)
         return subsets
 
-    def get_one_hot_cla_label(self, label):
+    def get_one_hot_cla_label(self, label, num_classes):
         """ Converts the classification label into one hot classification label
         format.
 
@@ -61,11 +62,11 @@ class ImageDataset(object):
             one_hot_label (numpy.ndarray):
                 the one hot label of an image with shape (num_classes,).
         """
-        one_hot_label = np.zeros([self.num_classes], dtype=np.uint8)
+        one_hot_label = np.zeros([num_classes], dtype=np.uint8)
         one_hot_label[label] = 1
-        return one_hot_label
+        return torch.Tensor(one_hot_label).type(torch.uint8)
 
-    def get_one_hot_seg_label(self, label):
+    def get_one_hot_seg_label(self, label, num_classes):
         """ Converts the segmentation label into one hot segmentation label
         format.
 
@@ -80,14 +81,11 @@ class ImageDataset(object):
                 the one hot segmentation label of an image with shape
                 (num_classes,H,W).
         """
-        indices = []
-        for i in range(self.num_classes):
-            indices.append(np.where(label == i))
-        h, w = label.shape if len(label.shape) == 2 else label.shape[1:]
-        one_hot_label = np.zeros((self.num_classes, h, w), dtype=np.uint8)
-        for i in range(self.num_classes):
-            one_hot_label[i, indices[i][1], indices[i][2]] = 1
-        return one_hot_label
+        h, w = label.shape
+        one_hot_label = np.zeros((num_classes, h, w), dtype=np.uint8)
+        for c in range(num_classes):
+            one_hot_label[c][np.where(label==c)] = 1
+        return torch.Tensor(one_hot_label).type(torch.uint8)
 
 
 class SingleImageClassificationDataset(ImageDataset):
@@ -119,7 +117,7 @@ class SingleImageClassificationDataset(ImageDataset):
 
         if seg_label_filepath is not None:
             if os.path.exists(seg_label_filepath):
-                seg_label = skimage.io.imread(seg_label_filepath, dtype=np.uint8)
+                seg_label = skimage.io.imread(seg_label_filepath).astype(np.uint8)
             else:
                 seg_label = np.zeros(image.shape[:2], dtype=np.uint8)
             transformed = self.transforms(image=image, mask=seg_label)
@@ -128,7 +126,7 @@ class SingleImageClassificationDataset(ImageDataset):
         image = transformed["image"]
 
         if self.one_hot:
-            cla_label = self.get_one_hot_cla_label(cla_label)
+            cla_label = self.get_one_hot_cla_label(cla_label, self.num_classes)
 
         return image, cla_label, os.path.basename(image_filepath)
 
@@ -164,14 +162,14 @@ class SingleImageSegmentationDataset(ImageDataset):
         image = skimage.io.imread(image_filepath)
 
         if os.path.exists(seg_label_filepath):
-            seg_label = skimage.io.imread(seg_label_filepath, dtype=np.uint8)
+            seg_label = skimage.io.imread(seg_label_filepath).astype(np.uint8)
         else:
             seg_label = np.zeros(image.shape[:2], dtype=np.uint8)
         transformed = self.transforms(image=image, mask=seg_label)
         image, seg_label = transformed["image"], transformed["mask"]
 
         if self.one_hot:
-            seg_label = self.get_one_hot_seg_label(seg_label)
+            seg_label = self.get_one_hot_seg_label(seg_label, self.num_classes)
 
         return image, seg_label, os.path.basename(image_filepath)
 
@@ -208,7 +206,7 @@ class MultiImageClassificationDataset(ImageDataset):
 
         if seg_label_filepath is not None:
             if os.path.exists(seg_label_filepath):
-                seg_label = skimage.io.imread(seg_label_filepath, dtype=np.uint8)
+                seg_label = skimage.io.imread(seg_label_filepath).astype(np.uint8)
             else:
                 seg_label = np.zeros(product[0].shape[:2], dtype=np.uint8)
             transformed = self.transforms(image=product, mask=seg_label)
@@ -218,7 +216,7 @@ class MultiImageClassificationDataset(ImageDataset):
         product = transformed["image"]
 
         if self.one_hot:
-            cla_label = self.get_one_hot_cla_label(cla_label)
+            cla_label = self.get_one_hot_cla_label(cla_label, self.num_classes)
 
         return product, cla_label, os.path.basename(product_dirpath)
 
@@ -254,14 +252,14 @@ class MultiImageSegmentationDataset(ImageDataset):
         product = [ skimage.io.imread(image_filepath) for image_filepath in sorted(glob.glob(os.path.join(product_dirpath, "*"))) ]
 
         if os.path.exists(seg_label_filepath):
-            seg_label = skimage.io.imread(seg_label_filepath, dtype=np.uint8)
+            seg_label = skimage.io.imread(seg_label_filepath).astype(np.uint8)
         else:
             seg_label = np.zeros((image[0].shape[0], image[0].shape[1]), dtype=np.uint8)
         transformed = self.transforms(image=product, mask=seg_label)
         product, seg_label = transformed["image"], transformed["mask"]
 
         if self.one_hot:
-            cla_label = self.get_one_hot_seg_label(cla_label)
+            seg_label = self.get_one_hot_seg_label(cla_label, self.num_classes)
 
         return product, seg_label, os.path.basename(product_dirpath)
 
