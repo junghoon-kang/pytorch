@@ -1,5 +1,4 @@
 import torchmetrics
-from torchmetrics import Metric
 
 
 if __name__ == "__main__":
