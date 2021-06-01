@@ -23,5 +23,5 @@ class CrossEntropyLoss2d(nn.CrossEntropyLoss):
     def forward(self, pred, true):
         N, C, H, W = pred.size()
         pred = pred.transpose(1,2).transpose(2,3).contiguous().view(-1, C)
-        true = true.transpose(1,2).transpose(2,3).long().contiguous().flatten()
+        true = true.long().contiguous().flatten()
         return super(CrossEntropyLoss2d, self).forward(pred / self.t_scale, true)
