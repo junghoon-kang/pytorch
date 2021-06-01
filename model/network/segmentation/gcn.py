@@ -1,13 +1,12 @@
 import torch
 import torch.nn as nn
 
-from network.network import *
-from network.layer import *
-from network.classification.resnet import *
+from model.network.classification.resnet import *
 
 
 __all__ = [
-    'GCResNet18', 'GCResNet50'
+    'GCResNet18',
+    'GCResNet50',
 ]
 
 class BRM(nn.Module):
@@ -54,21 +53,21 @@ class GCResNet(nn.Module):
         self.kernel_size = kernel_size
         self.num_classes = num_classes
 
-        self.gcm1 = GCM(self.resnet.classifier[2].in_features, out_channel, kernel_size)
+        self.gcm1 = GCM(self.resnet.fc.in_features, out_channel, kernel_size)
         self.brm1 = BRM(out_channel)
         self.upsample1 = nn.Upsample(scale_factor=2, mode='bilinear', align_corners=False)
 
-        self.gcm2 = GCM(self.resnet.classifier[2].in_features//2, out_channel, kernel_size)
+        self.gcm2 = GCM(self.resnet.fc.in_features//2, out_channel, kernel_size)
         self.brm2_1 = BRM(out_channel)
         self.brm2_2 = BRM(out_channel)
         self.upsample2 = nn.Upsample(scale_factor=2, mode='bilinear', align_corners=False)
 
-        self.gcm3 = GCM(self.resnet.classifier[2].in_features//4, out_channel, kernel_size)
+        self.gcm3 = GCM(self.resnet.fc.in_features//4, out_channel, kernel_size)
         self.brm3_1 = BRM(out_channel)
         self.brm3_2 = BRM(out_channel)
         self.upsample3 = nn.Upsample(scale_factor=2, mode='bilinear', align_corners=False)
 
-        self.gcm4 = GCM(self.resnet.classifier[2].in_features//8, out_channel, kernel_size)
+        self.gcm4 = GCM(self.resnet.fc.in_features//8, out_channel, kernel_size)
         self.brm4_1 = BRM(out_channel)
         self.brm4_2 = BRM(out_channel)
         self.upsample4 = nn.Upsample(scale_factor=2, mode='bilinear', align_corners=False)
@@ -79,14 +78,14 @@ class GCResNet(nn.Module):
         self.conv = nn.Conv2d(out_channel, num_classes, 1, bias=True)
 
     def forward(self, x):
-        out = self.resnet.features[0](x)    # conv
-        out = self.resnet.features[1](out)  # norm
-        out = self.resnet.features[2](out)  # relu
-        out = self.resnet.features[3](out)  # max pool
-        layer1 = self.resnet.features[4](out)
-        layer2 = self.resnet.features[5](layer1)
-        layer3 = self.resnet.features[6](layer2)
-        layer4 = self.resnet.features[7](layer3)
+        out = self.resnet.conv1(x)
+        out = self.resnet.bn1(out)
+        out = self.resnet.relu(out)
+        out = self.resnet.maxpool(out)  # max pool
+        layer1 = self.resnet.layer1(out)
+        layer2 = self.resnet.layer2(layer1)
+        layer3 = self.resnet.layer3(layer2)
+        layer4 = self.resnet.layer4(layer3)
 
         gclayer1 = self.upsample1(self.brm1(self.gcm1(layer4)))
         gclayer2 = self.upsample2(self.brm2_2(self.brm2_1(self.gcm2(layer3)) + gclayer1))
@@ -97,23 +96,13 @@ class GCResNet(nn.Module):
         return out
 
 
-class GCResNet18(SegmentationNetwork):
-    def __init__(self, shape, num_classes=2, checkpoint_dir='checkpoint', checkpoint_name='GCResNet18',
-                 out_channel=30, kernel_size=7):
-        super(GCResNet18, self).__init__(shape, num_classes, checkpoint_dir, checkpoint_name)
-        resnet = ResNet18(shape, num_classes)
-        self.model = GCResNet(resnet, out_channel=out_channel, kernel_size=kernel_size, num_classes=num_classes)
-
-    def forward(self, x):
-        return self.model(x)
+def GCResNet18(num_classes=2, out_channel=30, kernel_size=7):
+    resnet = ResNet18(num_classes, pretrained=True)
+    network = GCResNet(resnet, out_channel=out_channel, kernel_size=kernel_size, num_classes=num_classes)
+    return network
 
 
-class GCResNet50(SegmentationNetwork):
-    def __init__(self, shape, num_classes=2, checkpoint_dir='checkpoint', checkpoint_name='GCResNet50',
-                 out_channel=30, kernel_size=7):
-        super(GCResNet50, self).__init__(shape, num_classes, checkpoint_dir, checkpoint_name)
-        resnet = ResNet50(shape, num_classes)
-        self.model = GCResNet(resnet, out_channel=out_channel, kernel_size=kernel_size, num_classes=num_classes)
-
-    def forward(self, x):
-        return self.model(x)
+def GCResNet50(num_classes=2, out_channel=30, kernel_size=7):
+    resnet = ResNet50(num_classes, pretrained=True)
+    network = GCResNet(resnet, out_channel=out_channel, kernel_size=kernel_size, num_classes=num_classes)
+    return network
