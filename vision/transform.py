@@ -11,9 +11,9 @@ __all__ = [
 ]
 
 
-class RandomCropNearDefect(A.DualTransform):
-    def __init__(self, size=(128,128), coverage_size=(128,128), fixed=False, always_apply=False, p=1):
-        super(RandomCropNearDefect, self).__init__(always_apply, p)
+class RandomCropNearDefect(A.BasicTransform):
+    def __init__(self, size=(128,128), coverage_size=(128,128), fixed=False, always_apply=True, p=1.0):
+        super().__init__(always_apply=always_apply, p=p)
         if not (isinstance(size, tuple) or isinstance(size, list)):
             raise TypeError("size should be list or tuple.")
         if len(size) != 2:
@@ -36,8 +36,20 @@ class RandomCropNearDefect(A.DualTransform):
             self.coverage_size = (1,1)
 
     @property
+    def targets(self):
+        return {"image": self.apply, "mask": self.apply_to_mask}
+
+    @property
     def targets_as_params(self):
         return ["image", "mask"]
+
+    def apply(self, image, coords=(), **params):
+        y_min, x_min, y_max, x_max = coords
+        return A.functional.crop(image, x_min, y_min, x_max, y_max)
+
+    def apply_to_mask(self, image, coords=(), **params):
+        y_min, x_min, y_max, x_max = coords
+        return A.functional.crop(image, x_min, y_min, x_max, y_max)
 
     def get_params_dependent_on_targets(self, params):
         seg_label = params["mask"]
@@ -89,17 +101,9 @@ class RandomCropNearDefect(A.DualTransform):
             w2 = w - 1
         return (h1, w1, h2+1, w2+1)
 
-    def apply(self, image, coords=(), **params):
-        y_min, x_min, y_max, x_max = coords
-        return A.functional.crop(image, x_min, y_min, x_max, y_max)
-
-    def apply_to_mask(self, image, coords=(), **params):
-        y_min, x_min, y_max, x_max = coords
-        return A.functional.crop(image, x_min, y_min, x_max, y_max)
-
 class To3channel(A.ImageOnlyTransform):
-    def __init__(self, always_apply=False, p=1):
-        super(To3channel, self).__init__(always_apply, p)
+    def __init__(self, always_apply=True, p=1):
+        super().__init__(always_apply=always_apply, p=p)
 
     def apply(self, image, **params):
         if len(image.shape) != 2:
@@ -108,7 +112,7 @@ class To3channel(A.ImageOnlyTransform):
 
 class ToTensor(A.BasicTransform):
     def __init__(self, always_apply=True, p=1.0):
-        super(ToTensor, self).__init__(always_apply=always_apply, p=p)
+        super().__init__(always_apply=always_apply, p=p)
 
     @property
     def targets(self):
