@@ -1,7 +1,14 @@
 import os
 import glob
 import json
-from typing import Optional, List
+from typing import Optional, List, Union
+
+
+__all__ = [
+    "SingleImageAnnotation",
+    "MultiImageAnnotation",
+    #PairImageAnnotation",
+]
 
 
 IMAGE_EXTS = [
@@ -11,7 +18,34 @@ IMAGE_EXTS = [
     "jpeg",
 ]
 
-class ImageAnnotation(list):
+
+class ImageAnnotationSingleton(object):
+    def __init__(
+        self,
+        image: Union[str, List[str]],
+        cla_label: Optional[List[int]]=None,
+        seg_label: Optional[str]=None
+    ):
+        self._image = image
+        self._cla_label = cla_label
+        self._seg_label = seg_label
+
+    def __repr__(self):
+        return f"Object(image='{self.image}', cla_label='{self.cla_label}', seg_label='{self.seg_label}')"
+
+    @property
+    def image(self):
+        return self._image
+
+    @property
+    def seg_label(self):
+        return self._seg_label
+
+    @property
+    def cla_label(self):
+        return self._cla_label
+
+class SingleImageAnnotation(list):
     def from_research_format(
         self,
         image_dirpath: str,
@@ -21,7 +55,6 @@ class ImageAnnotation(list):
     ) -> None:
         with open(annotation_filepath, "r") as f:
             annotation = json.loads(f.read())
-
         with open(imageset_filepath, "r") as f:
             for line in f.read().splitlines():
                 image_filepath = os.path.join(image_dirpath, line)
@@ -53,28 +86,28 @@ class ImageAnnotation(list):
                         )
                     )
 
-class ImageAnnotationSingleton(object):
-    def __init__(
+class MultiImageAnnotation(list):
+    def from_research_format(
         self,
-        image: str,
-        cla_label: Optional[List[int]]=None,
-        seg_label: Optional[str]=None
-    ):
-        self._image = image
-        self._cla_label = cla_label
-        self._seg_label = seg_label
-
-    def __repr__(self):
-        return f"Object(image='{self.image}', cla_label='{self.cla_label}', seg_label='{self.seg_label}')"
-
-    @property
-    def image(self):
-        return self._image
-
-    @property
-    def seg_label(self):
-        return self._seg_label
-
-    @property
-    def cla_label(self):
-        return self._cla_label
+        image_dirpath: str,
+        annotation_filepath: str,
+        imageset_filepath: str,
+        seg_label_dirpath: Optional[str]=None
+    ) -> None:
+        with open(annotation_filepath, "r") as f:
+            annotation = json.loads(f.read())
+        with open(imageset_filepath, "r") as f:
+            for line in f.read().splitlines():
+                product_dirpath = os.path.join(image_dirpath, line)
+                image_filepaths = []
+                for ext in IMAGE_EXTS:
+                    image_filepaths += glob.glob(os.path.join(product_dirpath, f"*.{ext}"))
+                cla_label_list = annotation["multi_image"][line]["class"]  # TODO: suppport independent label for each image
+                seg_label_filepath  = None if seg_label_dirpath is None else os.path.join(seg_label_dirpath, line)
+                self.append(
+                    ImageAnnotationSingleton(
+                        image=image_filepaths,
+                        cla_label=cla_label_list,
+                        seg_label=seg_label_filepath
+                    )
+                )
