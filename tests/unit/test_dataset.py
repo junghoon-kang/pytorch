@@ -7,6 +7,7 @@ from torch.utils.data import DataLoader
 PATH = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, os.path.join(PATH, *[".."]*2))
 import config
+from vision.annotation import *
 from vision.dataset import *
 from vision.transform import *
 
@@ -193,3 +194,17 @@ def test_SingleImageSegmentationDataset_4(dataset_path, batch_size):
         assert y.shape == torch.Size([batch_size,512,512])
         assert len(name) == batch_size
         break
+
+
+if __name__ == "__main__":
+    path = os.path.join(config.DATA_DIR, "public", "DAGM", "original")
+    image_dirpath = os.path.join(path, "image")
+    annotation_filepath = os.path.join(path, "annotation", "domain1.single_image.2class.json")
+    imageset_filepath = os.path.join(path, "imageset", "domain1.single_image.2class", "public", "ratio", "100%", "test.txt")
+    seg_label_dirpath = os.path.join(path, "mask", "original.2class")
+
+
+    anno = SingleImageAnnotation(num_classes=2)
+    anno.from_research_format(image_dirpath, annotation_filepath, imageset_filepath, seg_label_dirpath)
+    dataset = ClassificationDataset(anno, transforms=[])
+    from IPython import embed; embed(); assert False
