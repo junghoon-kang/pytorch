@@ -16,6 +16,16 @@ def dataset_path():
     seg_label_dirpath = os.path.join(path, "mask", "original.2class")
     return [image_dirpath, annotation_filepath, imageset_filepath, seg_label_dirpath]
 
+def test_ImageAnnotationSingleton(dataset_path):
+    anno = SingleImageAnnotation(num_classes=2)
+    anno.from_research_format(*dataset_path)
+    singleton = anno[0]
+    tup = anno[0].data
+    assert isinstance(tup, tuple)
+    assert isinstance(tup[0], str)
+    assert isinstance(tup[1], int)
+    assert isinstance(tup[2], str)
+
 def test_SingleImageAnnotation_from_research_format(dataset_path):
     anno = SingleImageAnnotation(num_classes=2)
     anno.from_research_format(*dataset_path)
