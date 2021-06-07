@@ -16,8 +16,7 @@ def dataset_path():
     seg_label_dirpath = os.path.join(path, "mask", "original.2class")
     return [image_dirpath, annotation_filepath, imageset_filepath, seg_label_dirpath]
 
-def test_SingleImageAnnotation(dataset_path):
-    image_dirpath, annotation_filepath, imageset_filepath, seg_label_dirpath = dataset_path
+def test_SingleImageAnnotation_from_research_format(dataset_path):
     anno = SingleImageAnnotation(num_classes=2)
     anno.from_research_format(*dataset_path)
     assert len(anno) == 575
@@ -25,14 +24,19 @@ def test_SingleImageAnnotation(dataset_path):
     assert isinstance(anno[0].cla_label, int)
     assert isinstance(anno[0].seg_label, str)
 
-
-if __name__ == "__main__":
-    path = os.path.join(config.DATA_DIR, "public", "DAGM", "original")
-    image_dirpath = os.path.join(path, "image")
-    annotation_filepath = os.path.join(path, "annotation", "domain1.single_image.2class.json")
-    imageset_filepath = os.path.join(path, "imageset", "domain1.single_image.2class", "public", "ratio", "100%", "test.txt")
-    seg_label_dirpath = os.path.join(path, "mask", "original.2class")
+def test_SingleImageAnnotation_from_directory_format():
+    path = os.path.join(config.DATA_DIR, "public", "DAGM", "original.directory")
+    image_dirpaths = [ os.path.join(path, "image", c) for c in ["OK", "NG"] ]
+    cla_labels = [0, 1]
+    seg_label_dirpath = os.path.join(path, "mask")
 
     anno = SingleImageAnnotation(num_classes=2)
-    anno.from_research_format(image_dirpath, annotation_filepath, imageset_filepath, seg_label_dirpath)
+    anno.from_directory_format(image_dirpaths, cla_labels, seg_label_dirpath)
+    assert len(anno) == 575
+    assert isinstance(anno[0].image, str)
+    assert isinstance(anno[0].cla_label, int)
+    assert isinstance(anno[0].seg_label, str)
+
+
+if __name__ == "__main__":
     from IPython import embed; embed(); assert False
