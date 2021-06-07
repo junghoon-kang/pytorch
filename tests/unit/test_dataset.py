@@ -21,13 +21,13 @@ def dataset_path():
     seg_label_dirpath = os.path.join(path, "mask", "original.2class")
     return [image_dirpath, annotation_filepath, imageset_filepath, seg_label_dirpath]
 
-def test_SingleImageClassificationDataset_1(dataset_path):
-    image_dirpath, annotation_filepath, imageset_filepath, seg_label_dirpath = dataset_path
-    dataset = SingleImageClassificationDataset(
-        image_dirpath,
-        annotation_filepath,
-        imageset_filepath,
-        transforms=[]
+def test_ClassificationDataset_1(dataset_path):
+    annotation = SingleImageAnnotation(num_classes=2)
+    annotation.from_research_format(*dataset_path)
+    dataset = ClassificationDataset(
+        annotation,
+        transforms=[],
+        one_hot=False
     )
     assert len(dataset) > 0
     x, y, name = dataset[0]
@@ -37,13 +37,13 @@ def test_SingleImageClassificationDataset_1(dataset_path):
     assert isinstance(y, int)
     assert isinstance(name, str)
 
-def test_SingleImageClassificationDataset_2(dataset_path):
-    image_dirpath, annotation_filepath, imageset_filepath, seg_label_dirpath = dataset_path
-    dataset = SingleImageClassificationDataset(
-        image_dirpath,
-        annotation_filepath,
-        imageset_filepath,
-        transforms=[ToTensor()]
+def test_ClassificationDataset_2(dataset_path):
+    annotation = SingleImageAnnotation(num_classes=2)
+    annotation.from_research_format(*dataset_path)
+    dataset = ClassificationDataset(
+        annotation,
+        transforms=[ToTensor()],
+        one_hot=False
     )
     assert len(dataset) > 0
     x, y, name = dataset[0]
@@ -53,13 +53,13 @@ def test_SingleImageClassificationDataset_2(dataset_path):
     assert isinstance(y, int)
     assert isinstance(name, str)
 
-def test_SingleImageClassificationDataset_3(dataset_path):
-    image_dirpath, annotation_filepath, imageset_filepath, seg_label_dirpath = dataset_path
-    dataset = SingleImageClassificationDataset(
-        image_dirpath,
-        annotation_filepath,
-        imageset_filepath,
-        transforms=[ToTensor()]
+def test_ClassificationDataset_3(dataset_path):
+    annotation = SingleImageAnnotation(num_classes=2)
+    annotation.from_research_format(*dataset_path)
+    dataset = ClassificationDataset(
+        annotation,
+        transforms=[ToTensor()],
+        one_hot=False
     )
     data_loader = DataLoader(
         dataset,
@@ -81,13 +81,13 @@ def test_SingleImageClassificationDataset_3(dataset_path):
         break
 
 @pytest.mark.parametrize("batch_size", [4,8])
-def test_SingleImageClassificationDataset_4(dataset_path, batch_size):
-    image_dirpath, annotation_filepath, imageset_filepath, seg_label_dirpath = dataset_path
-    dataset = SingleImageClassificationDataset(
-        image_dirpath,
-        annotation_filepath,
-        imageset_filepath,
-        transforms=[ToTensor()]
+def test_ClassificationDataset_4(dataset_path, batch_size):
+    annotation = SingleImageAnnotation(num_classes=2)
+    annotation.from_research_format(*dataset_path)
+    dataset = ClassificationDataset(
+        annotation,
+        transforms=[ToTensor()],
+        one_hot=False
     )
     data_loader = DataLoader(
         dataset,
@@ -102,18 +102,17 @@ def test_SingleImageClassificationDataset_4(dataset_path, batch_size):
         assert len(name) == batch_size
         break
 
-##################################
-# SingleImageSegmentationDataset #
-##################################
+#######################
+# SegmentationDataset #
+#######################
 
-def test_SingleImageSegmentationDataset_1(dataset_path):
-    image_dirpath, annotation_filepath, imageset_filepath, seg_label_dirpath = dataset_path
-    dataset = SingleImageSegmentationDataset(
-        image_dirpath,
-        annotation_filepath,
-        imageset_filepath,
-        seg_label_dirpath,
-        transforms=[]
+def test_SegmentationDataset_1(dataset_path):
+    annotation = SingleImageAnnotation(num_classes=2)
+    annotation.from_research_format(*dataset_path)
+    dataset = SegmentationDataset(
+        annotation,
+        transforms=[],
+        one_hot=False
     )
     assert len(dataset) > 0
     x, y, name = dataset[0]
@@ -125,14 +124,13 @@ def test_SingleImageSegmentationDataset_1(dataset_path):
     assert x.dtype == np.uint8
     assert isinstance(name, str)
 
-def test_SingleImageSegmentationDataset_2(dataset_path):
-    image_dirpath, annotation_filepath, imageset_filepath, seg_label_dirpath = dataset_path
-    dataset = SingleImageSegmentationDataset(
-        image_dirpath,
-        annotation_filepath,
-        imageset_filepath,
-        seg_label_dirpath,
-        transforms=[ToTensor()]
+def test_SegmentationDataset_2(dataset_path):
+    annotation = SingleImageAnnotation(num_classes=2)
+    annotation.from_research_format(*dataset_path)
+    dataset = SegmentationDataset(
+        annotation,
+        transforms=[ToTensor()],
+        one_hot=False
     )
     assert len(dataset) > 0
     x, y, name = dataset[0]
@@ -141,17 +139,16 @@ def test_SingleImageSegmentationDataset_2(dataset_path):
     assert x.dtype == torch.float32
     assert isinstance(y, torch.Tensor)
     assert y.shape == torch.Size([512,512])
-    assert y.dtype == torch.float32
+    assert y.dtype == torch.uint8
     assert isinstance(name, str)
 
-def test_SingleImageSegmentationDataset_3(dataset_path):
-    image_dirpath, annotation_filepath, imageset_filepath, seg_label_dirpath = dataset_path
-    dataset = SingleImageSegmentationDataset(
-        image_dirpath,
-        annotation_filepath,
-        imageset_filepath,
-        seg_label_dirpath,
-        transforms=[ToTensor()]
+def test_SegmentationDataset_3(dataset_path):
+    annotation = SingleImageAnnotation(num_classes=2)
+    annotation.from_research_format(*dataset_path)
+    dataset = SegmentationDataset(
+        annotation,
+        transforms=[ToTensor()],
+        one_hot=False
     )
     data_loader = DataLoader(
         dataset,
@@ -166,21 +163,20 @@ def test_SingleImageSegmentationDataset_3(dataset_path):
         assert x.dtype == torch.float32
         assert isinstance(y, torch.Tensor)
         assert y.shape == torch.Size([1,512,512])
-        assert y.dtype == torch.float32
+        assert y.dtype == torch.uint8
         assert isinstance(name, list)
         assert len(name) == 1
         assert isinstance(name[0], str)
         break
 
 @pytest.mark.parametrize("batch_size", [4,8])
-def test_SingleImageSegmentationDataset_4(dataset_path, batch_size):
-    image_dirpath, annotation_filepath, imageset_filepath, seg_label_dirpath = dataset_path
-    dataset = SingleImageSegmentationDataset(
-        image_dirpath,
-        annotation_filepath,
-        imageset_filepath,
-        seg_label_dirpath,
-        transforms=[ToTensor()]
+def test_SegmentationDataset_4(dataset_path, batch_size):
+    annotation = SingleImageAnnotation(num_classes=2)
+    annotation.from_research_format(*dataset_path)
+    dataset = SegmentationDataset(
+        annotation,
+        transforms=[ToTensor()],
+        one_hot=False
     )
     data_loader = DataLoader(
         dataset,
