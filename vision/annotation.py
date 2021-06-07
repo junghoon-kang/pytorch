@@ -38,16 +38,16 @@ class ImageAnnotationSingleton(object):
         return self._image
 
     @property
-    def seg_label(self):
-        return self._seg_label
-
-    @property
     def cla_label(self):
         return self._cla_label
 
     @property
+    def seg_label(self):
+        return self._seg_label
+
+    @property
     def data(self):
-        return self._image, self._seg_label, self._cla_label
+        return self._image, self._cla_label, self._seg_label
 
 class SingleImageAnnotation(list):
     def __init__(self, num_classes):
