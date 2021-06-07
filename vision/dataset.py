@@ -7,15 +7,12 @@ import torch
 import numpy as np
 import albumentations as A
 
+from vision.annotation import *
+
 
 __all__ = [
     "ClassificationDataset",
-    "SingleImageClassificationDataset",
-    "SingleImageSegmentationDataset",
-    "MultiImageClassificationDataset",
-    "MultiImageSegmentationDataset",
-    #"PairImageClassificationDataset",
-    #"PairImageSegmentationDataset",
+    "SegmentationDataset",
 ]
 
 
@@ -90,220 +87,83 @@ class ImageDataset(object):
 
 class ClassificationDataset(ImageDataset):
     def __init__(self, annotation, transforms=[], one_hot=False):
+        if not isinstance(annotation, (SingleImageAnnotation, MultiImageAnnotation)):
+            raise TypeError("type(annotation) must be in {SingleImageAnnotation, MultiImageAnnotation, PairImageAnnotation}.")
+
         self.annotation = annotation
         self.transforms = A.Compose(transforms)
         self.subsets = self.get_subsets(annotation)
         self.one_hot = one_hot
+        self.num_classes = annotation.num_classes
 
     def __getitem__(self, index):
-        image_filepath = self.annotation[index].image
-        cla_label = self.annotation[index].cla_label
-        seg_label_filepath = self.annotation[index].seg_label
+        image_filepath, cla_label, seg_label_filepath = self.annotation[index].data
 
         if isinstance(self.annotation, SingleImageAnnotation):
             image = skimage.io.imread(image_filepath)
-        elif isinstance(self.annotation, MultiImageAnnotation):
-            image = [ skimage.io.imread(p) for p in image_filepath ]
         else:
-            raise ValueError
+            image = [ skimage.io.imread(path) for path in image_filepath ]
 
-        if seg_label_filepath is not None:
+        if seg_label_filepath is None:
+            transformed = self.transforms(image=image)
+        else:
             if os.path.exists(seg_label_filepath):
                 seg_label = skimage.io.imread(seg_label_filepath).astype(np.uint8)
             else:
                 seg_label = np.zeros(image.shape[:2], dtype=np.uint8)
             transformed = self.transforms(image=image, mask=seg_label)
-        else:
-            transformed = self.transforms(image=image)
         image = transformed["image"]
 
         if self.one_hot:
-            cla_label = self.get_one_hot_cla_label(cla_label, self.annotation.num_classes)
+            cla_label = self.get_one_hot_cla_label(cla_label, self.num_classes)
 
         if isinstance(self.annotation, SingleImageAnnotation):
             return image, cla_label, os.path.basename(image_filepath)
-        elif isinstance(self.annotation, MultiImageAnnotation):
-            return image, cla_label, os.path.basename(os.path.dirname(image_filepath))
         else:
-            raise ValueError
+            product_dirpath = os.path.dirname(image_filepath[0])
+            return image, cla_label, os.path.basename(product_dirpath)
 
     def __len__(self):
         return len(self.annotation)
 
-class SingleImageClassificationDataset(ImageDataset):
-    def __init__(self, image_dirpath, annotation_filepath, imageset_filepath, seg_label_dirpath=None, transforms=[], one_hot=False):
-        def process_line(line):
-            image_filepath = os.path.join(image_dirpath, line)
-            cla_label_list = self.annotation["single_image"][line]["class"]
-            seg_label_filepath  = None if seg_label_dirpath is None else os.path.join(seg_label_dirpath, line)
-            return [ (image_filepath, cla_label, seg_label_filepath) for cla_label in cla_label_list ]
 
-        with open(annotation_filepath, "r") as f:
-            self.annotation = json.loads(f.read())
+class SegmentationDataset(ImageDataset):
+    def __init__(self, annotation, transforms=[], one_hot=False):
+        if not isinstance(annotation, (SingleImageAnnotation, MultiImageAnnotation)):
+            raise TypeError("type(annotation) must be in {SingleImageAnnotation, MultiImageAnnotation, PairImageAnnotation}.")
 
-        with open(imageset_filepath, "r") as f:
-            self.samples = []
-            for line in f.read().splitlines():
-                for tup in process_line(line):
-                    self.samples.append(tup)
-
-        self.num_classes = len(self.annotation["classes"])
+        self.annotation = annotation
         self.transforms = A.Compose(transforms)
-
-        self.subsets = self.get_subsets(self.samples, self.num_classes)
+        self.subsets = self.get_subsets(annotation)
         self.one_hot = one_hot
+        self.num_classes = annotation.num_classes
 
     def __getitem__(self, index):
-        image_filepath, cla_label, seg_label_filepath = self.samples[index]
-        image = skimage.io.imread(image_filepath)
+        image_filepath, cla_label, seg_label_filepath = self.annotation[index].data
 
-        if seg_label_filepath is not None:
+        if isinstance(self.annotation, SingleImageAnnotation):
+            image = skimage.io.imread(image_filepath)
+        else:
+            image = [ skimage.io.imread(path) for path in image_filepath ]
+
+        if seg_label_filepath is None:
+            raise ValueError("seg_label_filepath should be str not None.")
+        else:
             if os.path.exists(seg_label_filepath):
                 seg_label = skimage.io.imread(seg_label_filepath).astype(np.uint8)
             else:
                 seg_label = np.zeros(image.shape[:2], dtype=np.uint8)
             transformed = self.transforms(image=image, mask=seg_label)
-        else:
-            transformed = self.transforms(image=image)
-        image = transformed["image"]
-
-        if self.one_hot:
-            cla_label = self.get_one_hot_cla_label(cla_label, self.num_classes)
-
-        return image, cla_label, os.path.basename(image_filepath)
-
-    def __len__(self):
-        return len(self.samples)
-
-
-class MultiImageClassificationDataset(ImageDataset):
-    def __init__(self, image_dirpath, annotation_filepath, imageset_filepath, seg_label_dirpath=None, transforms=[], one_hot=False):
-        def process_line(line):
-            product_dirpath = os.path.join(image_dirpath, line)
-            cla_label_list = list( self.annotation["multi_image"][line].values() )[0]["class"]  # TODO: suppport independent label for each image
-            seg_label_filepath = None if seg_label_dirpath is None else os.path.join(seg_label_dirpath, line)
-            return [ (product_dirpath, cla_label, seg_label_filepath) for cla_label in cla_label_list ]
-
-        with open(annotation_filepath, "r") as f:
-            self.annotation = json.loads(f.read())
-
-        with open(imageset_filepath, "r") as f:
-            self.samples = []
-            for line in f.read().splitlines():
-                for tup in process_line(line):
-                    self.samples.append(tup)
-
-        self.num_classes = len(self.annotation["classes"])
-        self.transforms = A.Compose(transforms)
-
-        self.subsets = self.get_subsets(self.samples, self.num_classes)
-        self.one_hot = one_hot
-
-    def __getitem__(self, index):
-        product_dirpath, cla_label, seg_label_filepath = self.samples[index]
-        product = [ skimage.io.imread(image_filepath) for image_filepath in sorted(glob.glob(os.path.join(product_dirpath, "*"))) ]
-
-        if seg_label_filepath is not None:
-            if os.path.exists(seg_label_filepath):
-                seg_label = skimage.io.imread(seg_label_filepath).astype(np.uint8)
-            else:
-                seg_label = np.zeros(product[0].shape[:2], dtype=np.uint8)
-            transformed = self.transforms(image=product, mask=seg_label)
-        else:
-            seg_label = None
-            transformed = self.transforms(image=product)
-        product = transformed["image"]
-
-        if self.one_hot:
-            cla_label = self.get_one_hot_cla_label(cla_label, self.num_classes)
-
-        return product, cla_label, os.path.basename(product_dirpath)
-
-    def __len__(self):
-        return len(self.samples)
-
-
-class SingleImageSegmentationDataset(ImageDataset):
-    def __init__(self, image_dirpath, annotation_filepath, imageset_filepath, seg_label_dirpath, transforms=[], one_hot=False):
-        def process_line(line):
-            image_filepath = os.path.join(image_dirpath, line)
-            cla_label_list = self.annotation["single_image"][line]["class"]
-            seg_label_filepath  = os.path.join(seg_label_dirpath, line)
-            return [ (image_filepath, cla_label, seg_label_filepath) for cla_label in cla_label_list ]
-
-        with open(annotation_filepath, "r") as f:
-            self.annotation = json.loads(f.read())
-
-        with open(imageset_filepath, "r") as f:
-            self.samples = []
-            for line in f.read().splitlines():
-                for tup in process_line(line):
-                    self.samples.append(tup)
-
-        self.num_classes = len(self.annotation["classes"])
-        self.transforms = A.Compose(transforms)
-
-        self.subsets = self.get_subsets(self.samples, self.num_classes)
-        self.one_hot = one_hot
-
-    def __getitem__(self, index):
-        image_filepath, cla_label, seg_label_filepath = self.samples[index]
-        image = skimage.io.imread(image_filepath)
-
-        if os.path.exists(seg_label_filepath):
-            seg_label = skimage.io.imread(seg_label_filepath).astype(np.uint8)
-        else:
-            seg_label = np.zeros(image.shape[:2], dtype=np.uint8)
-        transformed = self.transforms(image=image, mask=seg_label)
         image, seg_label = transformed["image"], transformed["mask"]
 
         if self.one_hot:
             seg_label = self.get_one_hot_seg_label(seg_label, self.num_classes)
 
-        return image, seg_label, os.path.basename(image_filepath)
-
-    def __len__(self):
-        return len(self.samples)
-
-
-class MultiImageSegmentationDataset(ImageDataset):
-    def __init__(self, image_dirpath, annotation_filepath, imageset_filepath, seg_label_dirpath, transforms=[], one_hot=False):
-        def process_line(line):
-            product_dirpath = os.path.join(image_dirpath, line)
-            cla_label_list = list( self.annotation["multi_image"][line].values() )[0]["class"]  # TODO: suppport independent label for each image
-            seg_label_filepath = os.path.join(seg_label_dirpath, line)
-            return [ (product_dirpath, cla_label, seg_label_filepath) for cla_label in cla_label_list ]
-
-        with open(annotation_filepath, "r") as f:
-            self.annotation = json.loads(f.read())
-
-        with open(imageset_filepath, "r") as f:
-            self.samples = []
-            for line in f.read().splitlines():
-                for tup in process_line(line):
-                    self.samples.append(tup)
-
-        self.num_classes = len(self.annotation["classes"])
-        self.transforms = Compose(transforms)
-
-        self.subsets = self.get_subsets(self.samples, self.num_classes)
-        self.one_hot = one_hot
-
-    def __getitem__(self, index):
-        product_dirpath, cla_label, seg_label_filepath = self.samples[index]
-        product = [ skimage.io.imread(image_filepath) for image_filepath in sorted(glob.glob(os.path.join(product_dirpath, "*"))) ]
-
-        if os.path.exists(seg_label_filepath):
-            seg_label = skimage.io.imread(seg_label_filepath).astype(np.uint8)
+        if isinstance(self.annotation, SingleImageAnnotation):
+            return image, seg_label, os.path.basename(image_filepath)
         else:
-            seg_label = np.zeros((image[0].shape[0], image[0].shape[1]), dtype=np.uint8)
-        transformed = self.transforms(image=product, mask=seg_label)
-        product, seg_label = transformed["image"], transformed["mask"]
-
-        if self.one_hot:
-            seg_label = self.get_one_hot_seg_label(cla_label, self.num_classes)
-
-        return product, seg_label, os.path.basename(product_dirpath)
+            product_dirpath = os.path.dirname(image_filepath[0])
+            return image, seg_label, os.path.basename(product_dirpath)
 
     def __len__(self):
-        return len(self.samples)
+        return len(self.annotation)
