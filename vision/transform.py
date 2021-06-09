@@ -11,7 +11,7 @@ __all__ = [
 ]
 
 
-class RandomCropNearDefect(A.BasicTransform):
+class RandomCropNearDefect(A.DualTransform):
     def __init__(self, size=(128,128), coverage_size=(128,128), fixed=False, always_apply=True, p=1.0):
         super().__init__(always_apply=always_apply, p=p)
         if not (isinstance(size, tuple) or isinstance(size, list)):
@@ -35,21 +35,23 @@ class RandomCropNearDefect(A.BasicTransform):
         if self.fixed:
             self.coverage_size = (1,1)
 
+    def get_transform_init_args_names(self):
+        return (
+            "size",
+            "coverage_size",
+            "fixed",
+        )
+
     @property
     def targets(self):
-        return {"image": self.apply, "mask": self.apply_to_mask}
+        return {
+            "image": self.apply,
+            "mask": self.apply_to_mask
+        }
 
     @property
     def targets_as_params(self):
-        return ["image", "mask"]
-
-    def apply(self, image, coords=(), **params):
-        y_min, x_min, y_max, x_max = coords
-        return A.functional.crop(image, x_min, y_min, x_max, y_max)
-
-    def apply_to_mask(self, image, coords=(), **params):
-        y_min, x_min, y_max, x_max = coords
-        return A.functional.crop(image, x_min, y_min, x_max, y_max)
+        return ["mask"]
 
     def get_params_dependent_on_targets(self, params):
         seg_label = params["mask"]
@@ -66,7 +68,6 @@ class RandomCropNearDefect(A.BasicTransform):
             # pick random point from defect pixels
             indices = np.where(seg_label != 0)  # TODO: handle the case when there are more than one defect classes by random cropping near the specific defect class
             if self.fixed:
-                #i = len(indices[0]) // 2
                 i = 0
             else:
                 i = random.randint(0, len(indices[0])-1)
@@ -101,22 +102,44 @@ class RandomCropNearDefect(A.BasicTransform):
             w2 = w - 1
         return (h1, w1, h2+1, w2+1)
 
+    def apply(self, image, **params):
+        y_min, x_min, y_max, x_max = params["coords"]
+        return A.functional.crop(image, x_min, y_min, x_max, y_max)
+
+    def apply_to_mask(self, image, **params):
+        y_min, x_min, y_max, x_max = params["coords"]
+        return A.functional.crop(image, x_min, y_min, x_max, y_max)
+
+
 class To3channel(A.ImageOnlyTransform):
     def __init__(self, always_apply=True, p=1):
-        super().__init__(always_apply=always_apply, p=p)
+        super(To3channel, self).__init__(always_apply=always_apply, p=p)
+
+    def get_transform_init_args_names(self):
+        return ()
 
     def apply(self, image, **params):
         if len(image.shape) != 2:
             raise ValueError("image should be 1-channel image")
         return np.dstack((image,)*3)
 
-class ToTensor(A.BasicTransform):
-    def __init__(self, always_apply=True, p=1.0):
+
+class ToTensor(A.DualTransform):
+    def __init__(self, always_apply=True, p=1):
         super().__init__(always_apply=always_apply, p=p)
+
+    def get_transform_init_args_names(self):
+        return ()
 
     @property
     def targets(self):
-        return {"image": self.apply, "mask": self.apply_to_mask}
+        return {
+            "image": self.apply,
+            "mask": self.apply_to_mask
+        }
+
+    def get_params_dependent_on_targets(self, params):
+        return {}
 
     def apply(self, image, **params):
         if image.ndim == 2:
@@ -128,6 +151,3 @@ class ToTensor(A.BasicTransform):
     def apply_to_mask(self, mask, **params):
         tensor = torch.from_numpy(mask)
         return tensor.contiguous()
-
-    def get_params_dependent_on_targets(self, params):
-        return {}
