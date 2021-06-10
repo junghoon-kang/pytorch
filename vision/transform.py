@@ -1,15 +1,72 @@
+import cv2
 import torch
 import random
 import numpy as np
 import albumentations as A
 
+import numpy as np
+from skimage.io import imsave
+
 
 __all__ = [
+    "Rotate90",
+    "ZoomIn",
     "RandomCropNearDefect",
     "To3channel",
     "ToTensor",
 ]
 
+
+class Rotate90(A.DualTransform):
+    def get_transform_init_args_names(self):
+        return ()
+
+    @property
+    def targets(self):
+        return {
+            "image": self.apply,
+            "mask": self.apply_to_mask
+        }
+
+    def apply(self, image, **params):
+        return np.ascontiguousarray(np.rot90(image, 1))
+
+class ZoomIn(A.DualTransform):
+    def __init__(self, scale_limit=(1.,1.2), interpolation=cv2.INTER_LINEAR, always_apply=False, p=0.5):
+        super().__init__(always_apply=always_apply, p=p)
+        self.scale_limit = A.to_tuple(scale_limit, bias=0)
+        self.interpolation = interpolation
+
+    def get_transform_init_args_names(self):
+        return {
+            "scale_limit": self.scale_limit,
+            "interpolation": self.interpolation,
+        }
+
+    @property
+    def targets(self):
+        return {
+            "image": self.apply,
+            "mask": self.apply_to_mask
+        }
+
+    def get_params(self):
+        return { "scale": random.uniform(self.scale_limit[0], self.scale_limit[1]) }
+
+    def apply(self, image, scale=0, interpolation=cv2.INTER_LINEAR, **params):
+        h, w = image.shape[:2]
+        image = A.scale(image, scale, interpolation)
+        print(scale)
+        print("1---", np.histogram(image))
+        image = A.center_crop(image, h, w)
+        print("2---", np.histogram(image))
+        return image
+
+class Colorwise(A.ImageOnlyTransform):
+    pass
+
+class Gradation(A.ImageOnlyTransform):
+    pass
 
 class RandomCropNearDefect(A.DualTransform):
     def __init__(self, size=(128,128), coverage_size=(128,128), fixed=False, always_apply=True, p=1.0):
@@ -103,10 +160,6 @@ class RandomCropNearDefect(A.DualTransform):
         return (h1, w1, h2+1, w2+1)
 
     def apply(self, image, **params):
-        y_min, x_min, y_max, x_max = params["coords"]
-        return A.functional.crop(image, x_min, y_min, x_max, y_max)
-
-    def apply_to_mask(self, image, **params):
         y_min, x_min, y_max, x_max = params["coords"]
         return A.functional.crop(image, x_min, y_min, x_max, y_max)
 
