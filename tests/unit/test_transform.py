@@ -230,23 +230,23 @@ def test_ZoomIn(samples):
         out_label_y, out_label_x = np.where(out_label == 1)
         assert np.array_equal(out_image_y, out_label_y) and np.array_equal(out_image_x, out_label_x)
 
-# albumentations.Sharpen
-#def test_Sharpen(samples):
-#    for image, label in samples:
-#        result = A.Compose([
-#            A.Sharpen(alpha=(0.2, 0.5), lightness=(0.5, 1.0), p=1)
-#        ])(image=image, mask=label)
-#        out_image = result["image"]
-#        out_label = result["mask"]
-#
-#        assert np.array_equal(label, out_label)
-#        # TODO: write more test cases
+# Sharpen
+def test_Sharpen(samples):
+    for image, label in samples:
+        result = A.Compose([
+            Sharpen(alpha=(0.2, 0.5), lightness=(0.5, 1.0), p=1)
+        ])(image=image, mask=label)
+        out_image = result["image"]
+        out_label = result["mask"]
+
+        assert np.array_equal(label, out_label)
+        # TODO: write more test cases
 
 # albumentations.GaussianBlur
 def test_GaussianBlur(samples):
     for image, label in samples:
         result = A.Compose([
-            A.GaussianBlur(blur_limit=(3,3), sigma_limit=(0,2))
+            A.GaussianBlur(blur_limit=(5,5), sigma_limit=(0,2))
         ])(image=image, mask=label)
         out_image = result["image"]
         out_label = result["mask"]
@@ -319,8 +319,9 @@ if __name__ == "__main__":
 
     result = A.Compose([
         ZoomIn(scale_limit=(1.2,1.2), interpolation=cv2.INTER_LINEAR, p=1),
-        A.GaussianBlur(blur_limit=(3,3), sigma_limit=(0,2), p=1),
+        A.GaussianBlur(blur_limit=(5,5), sigma_limit=(0,2), p=1),
         A.MultiplicativeNoise(multiplier=(0,2), per_channel=False, elementwise=True, p=1),
+        Sharpen(alpha=(0.2, 0.5), lightness=(0.5, 1.0), p=1)
     ])(image=image, mask=label)
 
     out_image = result["image"]
