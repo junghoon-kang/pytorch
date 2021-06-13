@@ -1,6 +1,7 @@
 import os, sys
 import cv2
 import torch
+import scipy
 import pytest
 import random
 import numpy as np
@@ -75,7 +76,7 @@ def samples(rectangle, circle, large_rectangle):
         large_rectangle,
     ]
 
-
+####################################################################################################
 # ToTensor
 def test_ToTensor_1(samples):
     for image, label in samples:
@@ -100,6 +101,7 @@ def test_ToTensor_2(samples):
         assert out_image.shape == torch.Size([3,512,512])
         assert out_label.shape == torch.Size([512,512])
 
+####################################################################################################
 # To3channel
 def test_To3channel_1(samples):
     for image, label in samples:
@@ -123,6 +125,7 @@ def test_To3channel_2(samples):
         assert np.array_equal(out_image[:,:,0], out_image[:,:,1])
         assert np.array_equal(out_image[:,:,1], out_image[:,:,2])
 
+####################################################################################################
 # albumentations.HorizontalFlip
 def test_HorizontalFlip_1(samples):
     for image, label in samples:
@@ -179,6 +182,7 @@ def test_HorizontalFlip_5(samples):
         assert np.array_equal(np.fliplr(image), out_image[:,:,0])
         assert np.array_equal(np.fliplr(label), out_label)
 
+####################################################################################################
 # albumentations.VerticalFlip
 def test_VerticalFlip_1(samples):
     for image, label in samples:
@@ -215,6 +219,7 @@ def test_VerticalFlip_3(samples):
         assert np.array_equal(np.flipud(image), out_image[:,:,0])
         assert np.array_equal(np.flipud(label), out_label)
 
+####################################################################################################
 # Rotate90
 def test_Rotate90_1(samples):
     for image, label in samples:
@@ -251,9 +256,27 @@ def test_Rotate90_3(samples):
         assert np.array_equal(np.rot90(image, 1), out_image[:,:,0])
         assert np.array_equal(np.rot90(label, 1), out_label)
 
+####################################################################################################
 # albumentations.Rotate
-# TODO: add test that verifies Rotate(45) module actually rotate 45 degrees
-def test_Rotate(samples):
+def apply_rotation(image, angle, interpolation=cv2.INTER_NEAREST, border_mode=cv2.BORDER_CONSTANT, value=0):
+    h, w = image.shape[:2]
+    center = w//2, h//2
+    matrix = cv2.getRotationMatrix2D(center, angle, scale=1.0)
+    result = cv2.warpAffine(image, M=matrix, dsize=(w, h), flags=interpolation, borderMode=border_mode, borderValue=value)
+    return result
+
+def test_Rotate_1(samples):
+    for image, label in samples:
+        result = A.Compose([
+            A.Rotate(limit=(45,45), interpolation=cv2.INTER_NEAREST, border_mode=cv2.BORDER_CONSTANT, value=0, mask_value=0, p=1),
+        ])(image=image, mask=label)
+        out_image = result["image"]
+        out_label = result["mask"]
+
+        assert np.array_equal(apply_rotation(image, 45), out_image)
+        assert np.array_equal(apply_rotation(label, 45), out_label)
+
+def test_Rotate_2(samples):
     for image, label in samples:
         result = A.Compose([
             #A.Rotate(limit=(45,45), interpolation=cv2.INTER_LINEAR, border_mode=cv2.BORDER_CONSTANT, value=0, mask_value=0, p=1),
@@ -266,34 +289,73 @@ def test_Rotate(samples):
         out_image = result["image"]
         out_label = result["mask"]
 
-        image_y, image_x = np.where(image == 255)
-        label_y, label_x = np.where(label == 1)
-        assert np.array_equal(image_y, label_y) and np.array_equal(image_x, label_x)
         out_image_y, out_image_x = np.where(out_image == 255)
         out_label_y, out_label_x = np.where(out_label == 1)
         assert np.array_equal(out_image_y, out_label_y) and np.array_equal(out_image_x, out_label_x)
 
+def test_Rotate_3(samples):
+    for image, label in samples:
+        result = A.Compose([
+            To3channel(),
+            A.Rotate(limit=(45,45), interpolation=cv2.INTER_NEAREST, border_mode=cv2.BORDER_CONSTANT, value=0, mask_value=0, p=1),
+        ])(image=image, mask=label)
+        out_image = result["image"]
+        out_label = result["mask"]
+
+        assert np.array_equal(apply_rotation(image, 45), out_image[:,:,0])
+        assert np.array_equal(apply_rotation(label, 45), out_label)
+
+####################################################################################################
 # albumentations.RandomBrightnessContrast
-def test_RandomBrightnessContrast_1(samples):
+def apply_contrast(image, alpha):
+    lut = np.arange(0, 255+1).astype(np.float32)
+    if alpha != 1:
+        lut *= alpha
+    lut = np.clip(lut, 0, 255).astype(np.uint8)
+    result = cv2.LUT(image, lut)
+    return result
+
+def test_Contrast_1(samples):
     for image, label in samples:
         result = A.Compose([
-            A.RandomBrightnessContrast(contrast_limit=(1,1), brightness_limit=0)  # Contrast
+            A.RandomBrightnessContrast(contrast_limit=(1,1), brightness_limit=0)
         ])(image=image, mask=label)
         out_image = result["image"]
         out_label = result["mask"]
 
-        ok = np.where(label == 0)
-        i, j = ok[0][0], ok[0][1]
-        assert np.clip(image[i,j]*2, a_min=0, a_max=255) == out_image[i,j]
-        ng = np.where(label == 1)
-        i, j = ng[0][0], ng[0][1]
-        assert np.clip(image[i,j]*2, a_min=0, a_max=255) == out_image[i,j]
+        assert np.array_equal(apply_contrast(image, 2), out_image)
         assert np.array_equal(label, out_label)
 
-def test_RandomBrightnessContrast_2(samples):
+def test_Contrast_2(samples):
     for image, label in samples:
         result = A.Compose([
-            A.RandomBrightnessContrast(contrast_limit=0, brightness_limit=(.5,.5))  # Brightness
+            A.RandomBrightnessContrast(contrast_limit=(1,1), brightness_limit=0)
+        ])(image=image, mask=label)
+        out_image = result["image"]
+        out_label = result["mask"]
+
+        out_image_y, out_image_x = np.where(out_image == 255)
+        out_label_y, out_label_x = np.where(out_label == 1)
+        assert np.array_equal(out_image_y, out_label_y) and np.array_equal(out_image_x, out_label_x)
+
+def test_Contrast_3(samples):
+    for i, (image, label) in enumerate(samples):
+        #image = np.dstack((image,)*3)
+        result = A.Compose([
+            To3channel(),
+            A.RandomBrightnessContrast(contrast_limit=(1,1), brightness_limit=0)
+        ])(image=image, mask=label)
+        out_image = result["image"]
+        out_label = result["mask"]
+
+        answer = apply_contrast(image, 2)
+        assert np.array_equal(answer, out_image[:,:,0]), out_image.shape
+        assert np.array_equal(label, out_label)
+
+def test_Brightness_1(samples):
+    for image, label in samples:
+        result = A.Compose([
+            A.RandomBrightnessContrast(contrast_limit=0, brightness_limit=(.5,.5))
         ])(image=image, mask=label)
         out_image = result["image"]
         out_label = result["mask"]
@@ -306,6 +368,7 @@ def test_RandomBrightnessContrast_2(samples):
         i, j = ng[0][0], ng[0][1]
         assert np.clip(image[i,j] + int(255/2), a_min=0, a_max=255) == out_image[i,j]
 
+####################################################################################################
 # ZoomIn
 def test_ZoomIn(samples):
     for image, label in samples:
@@ -330,6 +393,7 @@ def test_ZoomIn(samples):
         out_label_y, out_label_x = np.where(out_label == 1)
         assert np.array_equal(out_image_y, out_label_y) and np.array_equal(out_image_x, out_label_x)
 
+####################################################################################################
 # Sharpen
 def test_Sharpen(samples):
     for image, label in samples:
@@ -342,6 +406,7 @@ def test_Sharpen(samples):
         assert np.array_equal(label, out_label)
         # TODO: write more test cases
 
+####################################################################################################
 # albumentations.GaussianBlur
 def test_GaussianBlur(samples):
     for image, label in samples:
@@ -354,6 +419,7 @@ def test_GaussianBlur(samples):
         assert np.array_equal(label, out_label)
         # TODO: write more test cases
 
+####################################################################################################
 # albumentations.MultiplicativeNoise
 def test_MultiplicativeNoise(samples):
     for image, label in samples:
@@ -366,6 +432,7 @@ def test_MultiplicativeNoise(samples):
         assert np.array_equal(label, out_label)
         # TODO: write more test cases
 
+####################################################################################################
 # RandomCropNearDefect
 def test_RandomCropNearDefect_1(samples):
     for image, label in samples:
@@ -421,32 +488,20 @@ if __name__ == "__main__":
     image = np.full((h,w), fill_value=50, dtype=np.uint8)
     label = np.zeros((h,w), dtype=np.uint8)
     random.seed(47)
-    rec_center = (random.randint(0, h-1), random.randint(0, w-1))
-    rec_size = (128,128)
-    t = rec_center[0] - int(np.floor(rec_size[0]/2))
-    b = rec_center[0] + int(np.ceil(rec_size[0]/2))
-    l = rec_center[1] - int(np.floor(rec_size[1]/2))
-    r = rec_center[1] + int(np.ceil(rec_size[1]/2))
-    if t < 0: t = 0
-    if b > h: b = h
-    if l < 0: l = 0
-    if r > w: r = w
-    indices = np.meshgrid(np.arange(t, b), np.arange(l, r), indexing='ij')
-    image[tuple(indices)] = 255
-    label[tuple(indices)] = 1
+    image, label = draw_rectangle(image, label, (128,128))
 
     result = A.Compose([
         To3channel(),
-        A.HorizontalFlip(p=1)
+        A.RandomBrightnessContrast(contrast_limit=(1,1), brightness_limit=0)
     ])(image=image, mask=label)
-
     out_image = result["image"]
     out_label = result["mask"]
 
-    image_y, image_x = np.where(np.fliplr(image) == 255)
-    label_y, label_x = np.where(np.fliplr(label) == 1)
-    out_image_y, out_image_x, out_image_z = np.where(out_image == 255)
-    out_label_y, out_label_x = np.where(out_label == 1)
+    answer = apply_contrast(image, 2)
+
+    print(
+        np.array_equal(answer, out_image[:,:,0])
+    )
 
     #label[np.where(label==1)] = 255
     #out_label[np.where(out_label==1)] = 255
