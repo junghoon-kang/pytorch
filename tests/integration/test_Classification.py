@@ -13,6 +13,7 @@ from pytorch_lightning.callbacks import ModelCheckpoint, LearningRateMonitor
 PATH = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, os.path.join(PATH, *[".."]*2))
 import config
+from vision.annotation import *
 from vision.dataset import *
 from vision.transform import *
 from vision.sampler import *
@@ -33,8 +34,15 @@ def dataloaders():
     valid_filepath = os.path.join(imageset_dirpath, "validation.1.txt")
     test_filepath  = os.path.join(imageset_dirpath, "test.txt")
 
-    train_dataset = SingleImageClassificationDataset(
-        image_dirpath, annotation_filepath, train_filepath, seg_label_dirpath,
+    train_annotation = SingleImageAnnotation(num_classes=2)
+    valid_annotation = SingleImageAnnotation(num_classes=2)
+    test_annotation = SingleImageAnnotation(num_classes=2)
+    train_annotation.from_research_format(image_dirpath, annotation_filepath, train_filepath, seg_label_dirpath)
+    valid_annotation.from_research_format(image_dirpath, annotation_filepath, valid_filepath, seg_label_dirpath)
+    test_annotation.from_research_format(image_dirpath, annotation_filepath, test_filepath, seg_label_dirpath)
+
+    train_dataset = ClassificationDataset(
+        train_annotation,
         transforms=[
             A.HorizontalFlip(p=.5),
             A.VerticalFlip(p=.5),
@@ -42,15 +50,15 @@ def dataloaders():
             ToTensor(),
         ]
     )
-    valid_dataset = SingleImageClassificationDataset(
-        image_dirpath, annotation_filepath, valid_filepath, seg_label_dirpath,
+    valid_dataset = ClassificationDataset(
+        valid_annotation,
         transforms=[
             To3channel(),
             ToTensor(),
         ]
     )
-    test_dataset = SingleImageClassificationDataset(
-        image_dirpath, annotation_filepath, test_filepath, seg_label_dirpath,
+    test_dataset = ClassificationDataset(
+        test_annotation,
         transforms=[
             To3channel(),
             ToTensor(),
@@ -110,7 +118,7 @@ def test_train(model, dataloaders, logger):
 
     checkpoint_callback = ModelCheckpoint(
         save_top_k=1,
-        save_last=True,
+        save_last=False,
         monitor="valid_Recall",
         mode="max",
         dirpath=os.path.join(logger.root_dir, f"version_{logger.version}"),
@@ -129,8 +137,10 @@ def test_train(model, dataloaders, logger):
     )
     trainer.fit(model, train_dataloader, valid_dataloader)
     result = trainer.test(model, test_dataloaders=test_dataloader)
-    assert result[0]["test_Accuracy"] > 0.9, result
-    assert result[0]["test_Recall"] > 0.9, result
+    assert result[0]["test_Accuracy"] > 0.99, result
+    assert result[0]["test_Recall"] > 0.99, result
+    assert trainer.logged_metrics['train_loss'] < 0.1, trainer.logged_metrics
+    assert trainer.logged_metrics['valid_loss'] < 0.1, trainer.logged_metrics
 
 def test_evaluate(model, dataloaders):
     train_dataloader, valid_dataloader, test_dataloader = dataloaders
@@ -144,5 +154,7 @@ def test_evaluate(model, dataloaders):
         gpus=1
     )
     result = trainer.test(model, test_dataloaders=test_dataloader)
-    assert result[0]["test_Accuracy"] > 0.9, result
-    assert result[0]["test_Recall"] > 0.9, result
+    assert result[0]["test_Accuracy"] > 0.99, result
+    assert result[0]["test_Recall"] > 0.99, result
+    assert trainer.logged_metrics['train_loss'] < 0.1, trainer.logged_metrics
+    assert trainer.logged_metrics['valid_loss'] < 0.1, trainer.logged_metrics
