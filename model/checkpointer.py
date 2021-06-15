@@ -310,33 +310,6 @@ class ModelCheckpoint(Callback):
         # delegate the saving to the trainer
         trainer.save_checkpoint(filepath, self.save_weights_only)
 
-    def check_monitor_top_k(self, trainer: 'pl.Trainer', current: Optional[torch.Tensor] = None) -> bool:
-        if current is None:
-            return False
-
-        if self.save_top_k == -1:
-            return True
-
-        less_than_k_models = len(self.best_k_models) < self.save_top_k
-        if less_than_k_models:
-            return True
-
-        if not isinstance(current, torch.Tensor):
-            rank_zero_warn(
-                f"{current} is supposed to be a `torch.Tensor`. Saving checkpoint may not work correctly."
-                f" HINT: check the value of {self.monitor} in your validation loop",
-                RuntimeWarning,
-            )
-            current = torch.tensor(current)
-
-        monitor_op = {"min": torch.lt, "max": torch.gt}[self.mode]
-        should_update_best_and_save = monitor_op(current, self.best_k_models[self.kth_best_model_path])
-
-        # If using multiple devices, make sure all processes are unanimous on the decision.
-        should_update_best_and_save = trainer.training_type_plugin.reduce_boolean_decision(should_update_best_and_save)
-
-        return should_update_best_and_save
-
     @classmethod
     def _format_checkpoint_name(
         cls,
@@ -514,14 +487,91 @@ class ModelCheckpoint(Callback):
         if self.monitor is None or self.save_top_k == 0:
             return
 
-        current = monitor_candidates.get(self.monitor)
-
-        if self.check_monitor_top_k(trainer, current):
-            self._update_best_and_save(current, trainer, monitor_candidates)
+        """
+        monitor_candiates = {
+            'valid_loss': tensor(1.6992, device='cuda:0'),
+            'valid_Accuracy': tensor(0.9825, device='cuda:0'),
+            'valid_Recall': tensor(0.9899, device='cuda:0'),
+            'train_loss': tensor(10.4905, device='cuda:0'),
+            'epoch': 0,
+            'step': 24
+        }
+        """
+        if self.check_monitor_top_k(trainer, monitor_candidates):
+            self._update_best_and_save(trainer, monitor_candidates)  # FIXME: remove current
         elif self.verbose:
             epoch = monitor_candidates.get("epoch")
             step = monitor_candidates.get("step")
             rank_zero_info(f"Epoch {epoch:d}, global step {step:d}: {self.monitor} was not in top {self.save_top_k}")
+
+    def check_monitor_top_k(self, trainer: 'pl.Trainer', monitor_candidates: Dict[str, torch.Tensor]) -> bool:
+        if self.save_top_k == -1:  # FIXME: set it default 1
+            return True
+
+        less_than_k_models = len(self.best_k_models) < self.save_top_k
+        if less_than_k_models:
+            return True
+
+        # FIXME: instead of self.mode, use self.is_better(monitor_candidates), which returns boolean value 'shoud_update_best_and_save'
+        new = monitor_candidates
+        old = self.best_k_models[self.kth_best_model_path]
+        should_update_best_and_save = self.is_better(new, old)
+
+        # If using multiple devices, make sure all processes are unanimous on the decision.
+        should_update_best_and_save = trainer.training_type_plugin.reduce_boolean_decision(should_update_best_and_save)
+        return should_update_best_and_save
+
+    def is_better(self, new, old):
+        smaller_loss = new["valid_loss"] < old["valid_loss"]
+        return ( new["valid_Recall"] > old["valid_Recall"] ) or \
+            ( new["valid_Recall"] == old["valid_Recall"] and smaller_loss )
+
+    def _update_best_and_save(self, trainer: 'pl.Trainer', monitor_candidates: Dict[str, _METRIC]) -> None:
+        k = len(self.best_k_models) + 1 if self.save_top_k == -1 else self.save_top_k
+
+        del_filepath = None
+        if len(self.best_k_models) == k and k > 0:
+            del_filepath = self.kth_best_model_path
+            self.best_k_models.pop(del_filepath)
+
+        # do not save nan, replace with +/- inf
+        filepath = self._get_metric_interpolated_filepath_name(monitor_candidates, trainer, del_filepath)
+
+        # save the current score
+        self.current_score = monitor_candidates
+        self.best_k_models[filepath] = monitor_candidates
+
+        if len(self.best_k_models) == k:
+            # monitor dict has reached k elements
+            for i, (k, v) in enumerate(self.best_k_models.items()):
+                if i == 0:
+                    self.kth_best_model_path = k
+                    self.kth_value = v
+                else:
+                    if self.is_better(self.kth_value, v):
+                        self.kth_best_model_path = k
+                        self.kth_value = v
+
+        for i, (k, v) in enumerate(self.best_k_models.items()):
+            if i == 0:
+                self.best_model_path = k
+                self.best_model_score = v
+            else:
+                if self.is_better(v, self.best_model_score):
+                    self.best_model_path = k
+                    self.best_model_score = v
+
+        if self.verbose:
+            epoch = monitor_candidates.get("epoch")
+            step = monitor_candidates.get("step")
+            rank_zero_info(
+                f"Epoch {epoch:d}, global step {step:d}: {self.monitor} reached {current:0.5f}"
+                f' (best {self.best_model_score}), saving model to "{filepath}" as top {k}'
+            )
+        self._save_model(trainer, filepath)
+
+        if del_filepath is not None and filepath != del_filepath:
+            self._del_model(del_filepath)
 
     def _save_none_monitor_checkpoint(self, trainer: 'pl.Trainer', monitor_candidates: Dict[str, _METRIC]) -> None:
         if self.monitor is not None or self.save_top_k == 0:
@@ -540,48 +590,6 @@ class ModelCheckpoint(Callback):
 
     def _is_valid_monitor_key(self, metrics: Dict[str, _METRIC]) -> bool:
         return self.monitor in metrics or len(metrics) == 0
-
-    def _update_best_and_save(
-        self, current: torch.Tensor, trainer: 'pl.Trainer', monitor_candidates: Dict[str, _METRIC]
-    ) -> None:
-        k = len(self.best_k_models) + 1 if self.save_top_k == -1 else self.save_top_k
-
-        del_filepath = None
-        if len(self.best_k_models) == k and k > 0:
-            del_filepath = self.kth_best_model_path
-            self.best_k_models.pop(del_filepath)
-
-        # do not save nan, replace with +/- inf
-        if isinstance(current, torch.Tensor) and torch.isnan(current):
-            current = torch.tensor(float('inf' if self.mode == "min" else '-inf'))
-
-        filepath = self._get_metric_interpolated_filepath_name(monitor_candidates, trainer, del_filepath)
-
-        # save the current score
-        self.current_score = current
-        self.best_k_models[filepath] = current
-
-        if len(self.best_k_models) == k:
-            # monitor dict has reached k elements
-            _op = max if self.mode == "min" else min
-            self.kth_best_model_path = _op(self.best_k_models, key=self.best_k_models.get)
-            self.kth_value = self.best_k_models[self.kth_best_model_path]
-
-        _op = min if self.mode == "min" else max
-        self.best_model_path = _op(self.best_k_models, key=self.best_k_models.get)
-        self.best_model_score = self.best_k_models[self.best_model_path]
-
-        if self.verbose:
-            epoch = monitor_candidates.get("epoch")
-            step = monitor_candidates.get("step")
-            rank_zero_info(
-                f"Epoch {epoch:d}, global step {step:d}: {self.monitor} reached {current:0.5f}"
-                f' (best {self.best_model_score:0.5f}), saving model to "{filepath}" as top {k}'
-            )
-        self._save_model(trainer, filepath)
-
-        if del_filepath is not None and filepath != del_filepath:
-            self._del_model(del_filepath)
 
     def to_yaml(self, filepath: Optional[Union[str, Path]] = None) -> None:
         """
@@ -701,7 +709,7 @@ if __name__ == "__main__":
             checkpoint_callback,
         ],
         gpus=1,
-        max_epochs=10,
+        max_epochs=300,
         min_epochs=1
     )
     trainer.fit(model, train_dataloader, valid_dataloader)
