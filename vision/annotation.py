@@ -65,7 +65,7 @@ class SingleImageAnnotation(list):
         with open(imageset_filepath, "r") as f:
             for line in f.read().splitlines():
                 image_filepath = os.path.join(image_dirpath, line)
-                cla_label = annotation["single_image"][line]["class"][0]
+                cla_label = annotation["single_image"][line]["class"][0]  # TODO: need to handle soft-label and multi-label
                 seg_label_filepath  = None if seg_label_dirpath is None else os.path.join(seg_label_dirpath, line)
                 self.append(
                     ImageAnnotationSingleton(
@@ -112,7 +112,7 @@ class MultiImageAnnotation(list):
                 image_filepaths = []
                 for ext in IMAGE_EXTS:
                     image_filepaths += glob.glob(os.path.join(product_dirpath, f"*.{ext}"))
-                cla_label = annotation["multi_image"][line]["class"][0]  # TODO: suppport independent label for each image
+                cla_label = annotation["multi_image"][line]["class"][0]
                 seg_label_filepath  = None if seg_label_dirpath is None else os.path.join(seg_label_dirpath, line)
                 self.append(
                     ImageAnnotationSingleton(
