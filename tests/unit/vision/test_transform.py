@@ -9,7 +9,7 @@ import albumentations as A
 from skimage.io import imread, imsave
 
 PATH = os.path.dirname(os.path.abspath(__file__))
-sys.path.insert(0, os.path.join(PATH, *[".."]*2))
+sys.path.insert(0, os.path.join(PATH, *[".."]*3))
 from vision.transform import *
 
 
@@ -18,7 +18,7 @@ def empty_image():
     h, w = 512, 512
     image = np.full((h,w), fill_value=50, dtype=np.uint8)
     label = np.zeros((h,w), dtype=np.uint8)
-    return image, label
+    return (image, label)
 
 def draw_rectangle(image, label, size):
     h, w = image.shape[:2]
@@ -36,7 +36,7 @@ def draw_rectangle(image, label, size):
     indices = np.meshgrid(np.arange(t, b), np.arange(l, r), indexing='ij')
     image[tuple(indices)] = 255
     label[tuple(indices)] = 1
-    return image, label
+    return (image, label)
 
 def draw_circle(image, label, size):
     h, w = image.shape[:2]
@@ -48,7 +48,7 @@ def draw_circle(image, label, size):
     bool_indices = dist_from_center <= cir_radius
     image[bool_indices] = 255
     label[bool_indices] = 1
-    return image, label
+    return (image, label)
 
 @pytest.fixture
 def rectangle(empty_image):
@@ -113,6 +113,8 @@ def test_To3channel_1(samples):
 
         assert out_image.shape == (512,512,3)
         assert out_label.shape == (512,512)
+        assert image.dtype == out_image.dtype, image.dtype
+        assert label.dtype == out_label.dtype, label.dtype
 
 def test_To3channel_2(samples):
     for image, label in samples:
@@ -338,19 +340,35 @@ def test_Contrast_2(samples):
         out_label_y, out_label_x = np.where(out_label == 1)
         assert np.array_equal(out_image_y, out_label_y) and np.array_equal(out_image_x, out_label_x)
 
-def test_Contrast_3(samples):
-    for i, (image, label) in enumerate(samples):
-        #image = np.dstack((image,)*3)
-        result = A.Compose([
-            To3channel(),
-            A.RandomBrightnessContrast(contrast_limit=(1,1), brightness_limit=0)
-        ])(image=image, mask=label)
-        out_image = result["image"]
-        out_label = result["mask"]
+# TODO: need to check why it is not working
+#def test_Contrast_3(samples):
+#    for image, label in samples:
+#        result = A.Compose([
+#            To3channel(),
+#            A.RandomBrightnessContrast(contrast_limit=(1,1), brightness_limit=0)
+#        ])(image=image, mask=label)
+#        out_image = result["image"]
+#        out_label = result["mask"]
+#
+#        answer = apply_contrast(image, 2)
+#        assert np.array_equal(out_image[:,:,0], out_image[:,:,1])
+#        assert np.array_equal(out_image[:,:,0], out_image[:,:,2])
+#        assert np.array_equal(answer, out_image[:,:,0]), f"{np.histogram(answer)}\n{np.histogram(out_image[:,:,0])}"
+#        assert np.array_equal(label, out_label)
 
-        answer = apply_contrast(image, 2)
-        assert np.array_equal(answer, out_image[:,:,0]), out_image.shape
-        assert np.array_equal(label, out_label)
+@pytest.mark.parametrize("i", range(3))
+def test_Contrast_3(samples, i):
+    image, label = samples[i]
+    result = A.Compose([
+        To3channel(),
+        A.RandomBrightnessContrast(contrast_limit=(1,1), brightness_limit=0)
+    ])(image=image, mask=label)
+    out_image = result["image"]
+    out_label = result["mask"]
+
+    answer = apply_contrast(image, 2)
+    assert np.array_equal(answer, out_image[:,:,0]), f"{np.histogram(answer)}\n{np.histogram(out_image[:,:,0])}"
+    assert np.array_equal(label, out_label)
 
 def test_Brightness_1(samples):
     for image, label in samples:
@@ -488,7 +506,8 @@ if __name__ == "__main__":
     image = np.full((h,w), fill_value=50, dtype=np.uint8)
     label = np.zeros((h,w), dtype=np.uint8)
     random.seed(47)
-    image, label = draw_rectangle(image, label, (128,128))
+    #image, label = draw_rectangle(image, label, (128,128))
+    image, label = draw_rectangle(image, label, (64,64))
 
     result = A.Compose([
         To3channel(),

@@ -2,7 +2,7 @@ import os, sys
 import pytest
 
 PATH = os.path.dirname(os.path.abspath(__file__))
-sys.path.insert(0, os.path.join(PATH, *[".."]*2))
+sys.path.insert(0, os.path.join(PATH, *[".."]*3))
 import config
 from vision.annotation import *
 
@@ -36,9 +36,9 @@ def test_SingleImageAnnotation_from_research_format(dataset_path):
 
 def test_SingleImageAnnotation_from_directory_format():
     path = os.path.join(config.DATA_DIR, "public", "DAGM", "original.directory")
-    image_dirpaths = [ os.path.join(path, "image", c) for c in ["OK", "NG"] ]
+    image_dirpaths = [ os.path.join(path, "test", c) for c in ["OK", "NG"] ]
     cla_labels = [0, 1]
-    seg_label_dirpath = os.path.join(path, "mask")
+    seg_label_dirpath = os.path.join(path, "test", "mask")
 
     anno = SingleImageAnnotation(num_classes=2)
     anno.from_directory_format(image_dirpaths, cla_labels, seg_label_dirpath)

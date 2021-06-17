@@ -5,7 +5,7 @@ import numpy as np
 from torch.utils.data import DataLoader
 
 PATH = os.path.dirname(os.path.abspath(__file__))
-sys.path.insert(0, os.path.join(PATH, *[".."]*2))
+sys.path.insert(0, os.path.join(PATH, *[".."]*3))
 import config
 from vision.annotation import *
 from vision.dataset import *
