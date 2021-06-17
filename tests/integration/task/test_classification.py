@@ -11,17 +11,17 @@ from pytorch_lightning.callbacks import LearningRateMonitor
 
 
 PATH = os.path.dirname(os.path.abspath(__file__))
-sys.path.insert(0, os.path.join(PATH, *[".."]*2))
+sys.path.insert(0, os.path.join(PATH, *[".."]*3))
 import config
 from vision.annotation import *
 from vision.dataset import *
 from vision.transform import *
 from vision.sampler import *
-from model.classification import *
-from model.network.classification.resnet import *
-from model.criterion import *
-from model.optimizer import *
-from model.checkpointer import *
+from task.classification import *
+from network.classification.resnet import *
+from learner.criterion import *
+from learner.optimizer import *
+from callback.checkpointer import *
 
 
 @pytest.fixture
@@ -111,7 +111,7 @@ def model():
 
 @pytest.fixture
 def logger():
-    logger = TensorBoardLogger(save_dir=os.path.join(PATH, "checkpoint"), name="main")
+    logger = TensorBoardLogger(save_dir=os.path.join(PATH, "checkpoint"), name="classification")
     return logger
 
 def test_train(model, dataloaders, logger):
@@ -149,13 +149,13 @@ def test_train(model, dataloaders, logger):
     trainer.fit(model, train_dataloader, valid_dataloader)
 
     best_score = checkpoint_callback.best_model_score
-    assert best_score['train_loss'] < 0.1, best_score
-    assert best_score['valid_loss'] < 0.1, best_score
+    assert best_score["valid_Accuracy"] > 0.9, best_score
+    assert best_score["valid_Recall"] > 0.9, best_score
 
 def test_evaluate(model, dataloaders):
     train_dataloader, valid_dataloader, test_dataloader = dataloaders
 
-    ckpt_path = sorted(glob.glob(os.path.join(PATH, "checkpoint", "main", "version_0", "*.ckpt")))[-1]
+    ckpt_path = sorted(glob.glob(os.path.join(PATH, "checkpoint", "classification", "version_0", "*.ckpt")))[-1]
     ckpt = torch.load(ckpt_path)
     model.load_state_dict(ckpt["state_dict"])
 
@@ -165,5 +165,5 @@ def test_evaluate(model, dataloaders):
         gpus=1
     )
     result = trainer.test(model, test_dataloaders=test_dataloader)
-    assert result[0]["test_Accuracy"] == 1, result
-    assert result[0]["test_Recall"] == 1, result
+    assert result[0]["test_Accuracy"] > 0.9, result
+    assert result[0]["test_Recall"] > 0.9, result
