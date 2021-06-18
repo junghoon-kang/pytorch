@@ -220,9 +220,20 @@ class To3channel(A.ImageOnlyTransform):
         return ()
 
     def apply(self, image, **params):
-        if len(image.shape) != 2:
-            raise ValueError("image should be 1-channel image")
-        return np.dstack((image,)*3)
+        if image.ndim == 2:
+            return np.dstack((image,)*3)
+        elif image.ndim == 3:
+            c = image.shape[2]
+            if c == 1:
+                return np.dstack((image,)*3)
+            elif c == 3:
+                return image
+            elif c == 4:
+                return image[:,:,:3]
+            else:
+                raise ValueError(f"Number of channels of input image must be 1, 3, or 4. num_channels = {c}.")
+        else:
+            raise ValueError(f"Dimension of input image must be 2 or 3. image.ndim = {image.ndim}.")
 
 
 class ToTensor(A.DualTransform):
