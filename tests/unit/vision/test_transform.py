@@ -6,7 +6,6 @@ import pytest
 import random
 import numpy as np
 import albumentations as A
-from skimage.io import imread, imsave
 
 PATH = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, os.path.join(PATH, *[".."]*3))
@@ -113,10 +112,19 @@ def test_To3channel_1(samples):
 
         assert out_image.shape == (512,512,3)
         assert out_label.shape == (512,512)
+
+def test_To3channel_2(samples):
+    for image, label in samples:
+        result = A.Compose([
+            To3channel(),
+        ])(image=image, mask=label)
+        out_image = result["image"]
+        out_label = result["mask"]
+
         assert image.dtype == out_image.dtype, image.dtype
         assert label.dtype == out_label.dtype, label.dtype
 
-def test_To3channel_2(samples):
+def test_To3channel_3(samples):
     for image, label in samples:
         result = A.Compose([
             To3channel(),
@@ -309,7 +317,8 @@ def test_Rotate_3(samples):
 
 ####################################################################################################
 # albumentations.RandomBrightnessContrast
-def apply_contrast(image, alpha):
+def apply_contrast(image, alpha=1):
+    alpha += 1
     lut = np.arange(0, 255+1).astype(np.float32)
     if alpha != 1:
         lut *= alpha
@@ -325,7 +334,7 @@ def test_Contrast_1(samples):
         out_image = result["image"]
         out_label = result["mask"]
 
-        assert np.array_equal(apply_contrast(image, 2), out_image)
+        assert np.array_equal(apply_contrast(image, 1), out_image)
         assert np.array_equal(label, out_label)
 
 def test_Contrast_2(samples):
@@ -341,7 +350,7 @@ def test_Contrast_2(samples):
         assert np.array_equal(out_image_y, out_label_y) and np.array_equal(out_image_x, out_label_x)
 
 # TODO: need to check why it is not working
-#def test_Contrast_3(samples):
+#def test_Contrast_3_(samples):
 #    for image, label in samples:
 #        result = A.Compose([
 #            To3channel(),
@@ -350,10 +359,7 @@ def test_Contrast_2(samples):
 #        out_image = result["image"]
 #        out_label = result["mask"]
 #
-#        answer = apply_contrast(image, 2)
-#        assert np.array_equal(out_image[:,:,0], out_image[:,:,1])
-#        assert np.array_equal(out_image[:,:,0], out_image[:,:,2])
-#        assert np.array_equal(answer, out_image[:,:,0]), f"{np.histogram(answer)}\n{np.histogram(out_image[:,:,0])}"
+#        assert np.array_equal(apply_contrast(image, 2), out_image[:,:,0]), f"\n\n{np.histogram(apply_contrast(image, 2))}\n\n{np.histogram(out_image[:,:,0])}\n\n"
 #        assert np.array_equal(label, out_label)
 
 @pytest.mark.parametrize("i", range(3))
@@ -366,9 +372,16 @@ def test_Contrast_3(samples, i):
     out_image = result["image"]
     out_label = result["mask"]
 
-    answer = apply_contrast(image, 2)
-    assert np.array_equal(answer, out_image[:,:,0]), f"{np.histogram(answer)}\n{np.histogram(out_image[:,:,0])}"
+    assert np.array_equal(apply_contrast(image, 1), out_image[:,:,0]), f"\n\n{np.histogram(apply_contrast(image, 2))}\n\n{np.histogram(out_image[:,:,0])}\n\n"
     assert np.array_equal(label, out_label)
+
+def apply_brightness(image, beta=0.5):
+    lut = np.arange(0, 255+1).astype(np.float32)
+    if beta != 0:
+        lut += beta * 255
+    lut = np.clip(lut, 0, 255).astype(np.uint8)
+    result = cv2.LUT(image, lut)
+    return result
 
 def test_Brightness_1(samples):
     for image, label in samples:
@@ -378,13 +391,33 @@ def test_Brightness_1(samples):
         out_image = result["image"]
         out_label = result["mask"]
 
+        assert np.array_equal(apply_brightness(image, 0.5), out_image)
         assert np.array_equal(label, out_label)
-        ok = np.where(label == 0)
-        i, j = ok[0][0], ok[0][1]
-        assert np.clip(image[i,j] + int(255/2), a_min=0, a_max=255) == out_image[i,j]
-        ng = np.where(label == 1)
-        i, j = ng[0][0], ng[0][1]
-        assert np.clip(image[i,j] + int(255/2), a_min=0, a_max=255) == out_image[i,j]
+
+def test_Brightness_2(samples):
+    for image, label in samples:
+        result = A.Compose([
+            A.RandomBrightnessContrast(contrast_limit=0, brightness_limit=(.5,.5))
+        ])(image=image, mask=label)
+        out_image = result["image"]
+        out_label = result["mask"]
+
+        out_image_y, out_image_x = np.where(out_image == 255)
+        out_label_y, out_label_x = np.where(out_label == 1)
+        assert np.array_equal(out_image_y, out_label_y) and np.array_equal(out_image_x, out_label_x)
+
+@pytest.mark.parametrize("i", range(3))
+def test_Brightness_3(samples, i):
+    image, label = samples[i]
+    result = A.Compose([
+    To3channel(),
+        A.RandomBrightnessContrast(contrast_limit=0, brightness_limit=(.5,.5))
+    ])(image=image, mask=label)
+    out_image = result["image"]
+    out_label = result["mask"]
+
+    assert np.array_equal(apply_brightness(image, 0.5), out_image[:,:,0]), f"\n\n{np.histogram(apply_brightness(image, 0.5))}\n\n{np.histogram(out_image[:,:,0])}\n\n"
+    assert np.array_equal(label, out_label)
 
 ####################################################################################################
 # ZoomIn
@@ -522,6 +555,7 @@ if __name__ == "__main__":
         np.array_equal(answer, out_image[:,:,0])
     )
 
+    #from skimage.io import imsave
     #label[np.where(label==1)] = 255
     #out_label[np.where(out_label==1)] = 255
     #imsave("image.png", image)
