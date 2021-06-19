@@ -1,41 +1,36 @@
-Trainer(ModelCheckpointer, Logger, EarlyStopper, [EvaluationMetrics])
+Trainer(ModelCheckpointer, Logger, EarlyStopper)
     fit(Task, DataLoader, DataLoader) -> Model path
+    test(Task, DataLoader) -> Result path
 
-Evaluator([EvaluationMetrics])
-    evaluate(Model, DataLoader) -> Result path
-
-Model(Network, Criterion, Optimizer, LRScheduler, Regulerizer)  # TODO: SWA, Augmix
+Task(Network, Criterion, Optimizer, LRScheduler, Regulerizer, Metrics)  # TODO: SWA, Augmix
     Classification
     Segmentation
-
-Network()
 
 Result()
 
 MetricsCombiner()
 
 
+vision/
+    DataLoader(Dataset, Sampler)
 
-DataLoader(Dataset, Sampler)
+    Dataset(Annotation, Transform)
+        ClassificationDataset()
+        SegmentationDataset()
 
-Dataset(Transform)
-    SingleImageClassificationDataset()
-    SingleImageSegmentationDataset()
-    MultiImageClassificationDataset()
-    MultiImageSegmentationDataset()
-    PairImageClassificationDataset()
-    PairImageSegmentationDataset()
+    Annotation()
+        SingleImageAnnotation()
+        MultiImageAnnotation()
+        PairImageAnnotation()
 
-Transform()
+    Transform()
 
-Sampler()
-    RandomSampler()
-    WeightedSampler()
-
+    Sampler()
+        RandomSampler()
+        WeightedSampler()
 
 
-GradCAM()
-    checkpoint(Model, DataLoader) -> checkpoint_path (of mask images)
+visualizer/
+    GradCAM(Network, layer_name) -> checkpoint_path (of mask images)
 
-ActivationMap()
-    checkpoint(Model, DataLoader) -> checkpoint_path (of mask images)
+    ActivationMap(Network, layer_names) -> checkpoint_path (of mask images)
