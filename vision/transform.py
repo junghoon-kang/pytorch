@@ -11,7 +11,6 @@ from skimage.io import imsave
 __all__ = [
     "Rotate90",
     "ZoomIn",
-    "Sharpen",
     "RandomCropNearDefect",
     "To3channel",
     "ToTensor",
@@ -31,6 +30,7 @@ class Rotate90(A.DualTransform):
 
     def apply(self, image, **params):
         return np.ascontiguousarray(np.rot90(image, 1))
+
 
 class ZoomIn(A.DualTransform):
     def __init__(self, scale_limit=(1.,1.2), interpolation=cv2.INTER_LINEAR, always_apply=False, p=0.5):
@@ -60,61 +60,6 @@ class ZoomIn(A.DualTransform):
         image = A.center_crop(image, h, w)
         return image
 
-@A.functional.preserve_shape
-def convolve(img, kernel):
-    conv_fn = A.functional._maybe_process_in_chunks(cv2.filter2D, ddepth=-1, kernel=kernel)
-    return conv_fn(img)
-
-class Sharpen(A.ImageOnlyTransform):
-    """Sharpen the input image and overlays the result with the original image.
-    Args:
-        alpha ((float, float)): range to choose the visibility of the sharpened image. At 0, only the original image is
-            visible, at 1.0 only its sharpened version is visible. Default: (0.2, 0.5).
-        lightness ((float, float)): range to choose the lightness of the sharpened image. Default: (0.5, 1.0).
-        p (float): probability of applying the transform. Default: 0.5.
-    Targets:
-        image
-    """
-
-    def __init__(self, alpha=(0.2, 0.5), lightness=(0.5, 1.0), always_apply=False, p=0.5):
-        super(Sharpen, self).__init__(always_apply, p)
-        self.alpha = self.__check_values(A.to_tuple(alpha, 0.0), name="alpha", bounds=(0.0, 1.0))
-        self.lightness = self.__check_values(A.to_tuple(lightness, 0.0), name="lightness")
-
-    @staticmethod
-    def __check_values(value, name, bounds=(0, float("inf"))):
-        if not bounds[0] <= value[0] <= value[1] <= bounds[1]:
-            raise ValueError("{} values should be between {}".format(name, bounds))
-        return value
-
-    @staticmethod
-    def __generate_sharpening_matrix(alpha_sample, lightness_sample):
-        matrix_nochange = np.array([[0, 0, 0], [0, 1, 0], [0, 0, 0]], dtype=np.float32)
-        matrix_effect = np.array(
-            [[-1, -1, -1], [-1, 8 + lightness_sample, -1], [-1, -1, -1]],
-            dtype=np.float32,
-        )
-
-        matrix = (1 - alpha_sample) * matrix_nochange + alpha_sample * matrix_effect
-        return matrix
-
-    def get_params(self):
-        alpha = random.uniform(*self.alpha)
-        lightness = random.uniform(*self.lightness)
-        sharpening_matrix = self.__generate_sharpening_matrix(alpha_sample=alpha, lightness_sample=lightness)
-        return {"sharpening_matrix": sharpening_matrix}
-
-    def apply(self, img, sharpening_matrix=None, **params):
-        return convolve(img, sharpening_matrix)
-
-    def get_transform_init_args_names(self):
-        return ("alpha", "lightness")
-
-class Colorwise(A.ImageOnlyTransform):
-    pass
-
-class Gradation(A.ImageOnlyTransform):
-    pass
 
 class RandomCropNearDefect(A.DualTransform):
     def __init__(self, size=(128,128), coverage_size=(128,128), fixed=False, always_apply=True, p=1.0):
