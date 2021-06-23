@@ -484,11 +484,11 @@ def test_MultiplicativeNoise(samples):
         # TODO: write more test cases
 
 ####################################################################################################
-# RandomCropNearDefect
-def test_RandomCropNearDefect_1(samples):
+# RandomCrop
+def test_RandomCrop_1(samples):
     for image, label in samples:
         result = A.Compose([
-            RandomCropNearDefect(
+            RandomCrop(
                 size = (128,128),
                 coverage_size = (1,1),
                 fixed = True
@@ -500,10 +500,10 @@ def test_RandomCropNearDefect_1(samples):
         assert out_image.shape == (128,128)
         assert out_label.shape == (128,128)
 
-def test_RandomCropNearDefect_2(samples):
+def test_RandomCrop_2(samples):
     for image, label in samples:
         result = A.Compose([
-            RandomCropNearDefect(
+            RandomCrop(
                 size = (128,128),
                 coverage_size = (1,1),
                 fixed = True
@@ -516,11 +516,11 @@ def test_RandomCropNearDefect_2(samples):
         out_label_y, out_label_x = np.where(out_label == 1)
         assert np.array_equal(out_image_y, out_label_y) and np.array_equal(out_image_x, out_label_x)
 
-def test_RandomCropNearDefect_3(samples):
+def test_RandomCrop_3(samples):
     for image, label in samples:
         result = A.Compose([
             To3channel(),
-            RandomCropNearDefect(
+            RandomCrop(
                 size = (128,128),
                 coverage_size = (1,1),
                 fixed = True
@@ -543,17 +543,14 @@ if __name__ == "__main__":
     image, label = draw_rectangle(image, label, (64,64))
 
     result = A.Compose([
-        To3channel(),
-        A.RandomBrightnessContrast(contrast_limit=(1,1), brightness_limit=0)
-    ])(image=image, mask=label)
+        RandomCrop(
+            size = (128,128),
+            coverage_size = (1,1),
+            fixed = True
+        )
+    ])(image=image, mask=label, cla_label=1)
     out_image = result["image"]
     out_label = result["mask"]
-
-    answer = apply_contrast(image, 2)
-
-    print(
-        np.array_equal(answer, out_image[:,:,0])
-    )
 
     #from skimage.io import imsave
     #label[np.where(label==1)] = 255
