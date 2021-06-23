@@ -95,14 +95,14 @@ class RandomCrop(A.DualTransform):
         always_apply=True,
         p=1.0
     ):
-        is_sequence_of_two_positive_integers(size, "size")
-        is_sequence_of_two_positive_integers(coverage_size, "coverage_size")
+        is_sequence_of_two_positive_numbers(size, "size")
+        is_sequence_of_two_positive_numbers(coverage_size, "coverage_size")
         if coverage_size[0] > size[0] or coverage_size[1] > size[1]:
             raise ValueError("coverage_size must be smaller than or equal to size")
 
         super(RandomCrop, self).__init__(always_apply=always_apply, p=p)
-        self.size = size
-        self.coverage_size = coverage_size
+        self.size = tuple(int(size[0]), int(size[1]))
+        self.coverage_size = tuple(int(coverage_size[0]), int(coverage_size[1]))
         self.fixed = fixed
         if self.fixed:
             self.coverage_size = (1,1)
@@ -191,15 +191,16 @@ class Cutout(A.DualTransform):
             dict(name="rectangle", size=(64,64), max_coverage_ratio=0.5),
             dict(name="roi"),
         ],
-        always_apply=True,
-        p=1.0
+        always_apply=False,
+        p=0.5
     ):
         self.__sanity_check_patterns(patterns)
         super(Cutout, self).__init__(always_apply=always_apply, p=p)
-        n = len(patterns) + 1
-        self.patterns = [ ((i+1)/n, patterns[i]) for i in range(n-1) ] + [(1,None)]
+        self.patterns = [ ((i+1)/len(patterns), pattern) for i, pattern in enumerate(patterns) ]
 
     def __sanity_check_patterns(self, patterns):
+        if len(patterns) == 0:
+            raise ValueError("the length of patterns must be greater than 0")
         for pattern in patterns:
             if "name" not in pattern:
                 raise ValueError("pattern must contain name as a key")
@@ -207,7 +208,7 @@ class Cutout(A.DualTransform):
             if name == "rectangle":
                 if "size" not in pattern:
                     raise ValueError("retangle pattern must contain size as a key.")
-                is_sequence_of_two_positive_integers(pattern["size"], "size")
+                is_sequence_of_two_positive_numbers(pattern["size"], "size")
                 if "max_coverage_ratio" not in pattern:
                     raise ValueError("pattern must contain max_coverage_ratio as a key.")
                 if not (0 <= pattern["max_coverage_ratio"] <= 1):
@@ -229,9 +230,6 @@ class Cutout(A.DualTransform):
         for bound, pattern in self.patterns:
             if p <= bound:
                 break
-
-        if pattern is None:
-            return { "indices": None }
 
         cla_label = params["cla_label"]
         seg_label = params["mask"]
@@ -363,15 +361,15 @@ class ToTensor(A.DualTransform):
         return {}
 
 
-def is_sequence_of_two_positive_integers(seq, name=""):
+def is_sequence_of_two_positive_numbers(seq, name=""):
     if not isinstance(seq, Sequence):
         raise TypeError(f"{name} must be list or tuple")
     if len(seq) != 2:
         raise TypeError(f"{name} must be list or tuple of size 2")
-    if not (isinstance(seq[0], int) and isinstance(seq[1], int)):
-        raise TypeError(f"{name} must be list or tuple of integers")
+    if not (isinstance(seq[0], (int, float)) and isinstance(seq[1], (int, float))):
+        raise TypeError(f"{name} must be list or tuple of integers or floats")
     if seq[0] <= 0 or seq[1] <= 0:
-        raise ValueError(f"{name} must be a positive integer")
+        raise ValueError(f"{name} must be greater than 0")
 
 
 if __name__ == "__main__":
