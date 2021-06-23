@@ -493,7 +493,7 @@ def test_RandomCrop_1(samples):
                 coverage_size = (1,1),
                 fixed = True
             )
-        ])(image=image, mask=label)
+        ])(image=image, mask=label, cla_label=1)
         out_image = result["image"]
         out_label = result["mask"]
 
@@ -508,7 +508,7 @@ def test_RandomCrop_2(samples):
                 coverage_size = (1,1),
                 fixed = True
             )
-        ])(image=image, mask=label)
+        ])(image=image, mask=label, cla_label=1)
         out_image = result["image"]
         out_label = result["mask"]
 
@@ -525,7 +525,7 @@ def test_RandomCrop_3(samples):
                 coverage_size = (1,1),
                 fixed = True
             )
-        ])(image=image, mask=label)
+        ])(image=image, mask=label, cla_label=1)
         out_image = result["image"]
         out_label = result["mask"]
 
@@ -539,14 +539,16 @@ if __name__ == "__main__":
     image = np.full((h,w), fill_value=50, dtype=np.uint8)
     label = np.zeros((h,w), dtype=np.uint8)
     random.seed(47)
-    #image, label = draw_rectangle(image, label, (128,128))
-    image, label = draw_rectangle(image, label, (64,64))
+    image, label = draw_rectangle(image, label, (128,128))
 
     result = A.Compose([
-        RandomCrop(
-            size = (128,128),
-            coverage_size = (1,1),
-            fixed = True
+        Cutout(
+            patterns=[
+                dict(name="rectangle", size=(256//4,256//4), max_coverage_ratio=0.5),
+                dict(name="rectangle", size=(256//2,256//2), max_coverage_ratio=0.5),
+                dict(name="rectangle", size=(256,256), max_coverage_ratio=0.5),
+            ],
+            always_apply=True
         )
     ])(image=image, mask=label, cla_label=1)
     out_image = result["image"]
