@@ -218,22 +218,23 @@ class Cutout(A.DualTransform):
                 raise ValueError("pattern name must be one of the following: ['rectangle', 'roi']")
 
     def get_params(self):
-        p = np.random.uniform()
-        for bound, pattern in self.patterns:
-            if p <= bound:
-                return { "pattern": pattern }
+        return {}
 
     @property
     def targets_as_params(self):
         return ["mask", "cla_label"]
 
     def get_params_dependent_on_targets(self, params):
-        if params["pattern"] is None:
+        p = np.random.uniform()
+        for bound, pattern in self.patterns:
+            if p <= bound:
+                break
+
+        if pattern is None:
             return { "indices": None }
 
         cla_label = params["cla_label"]
         seg_label = params["mask"]
-        pattern = params["pattern"]
         if pattern["name"] == "rectangle":
             indices = self.__get_seg_label_indices_for_rectangular_cutout(seg_label, cla_label, pattern["size"], pattern["max_coverage_ratio"])
         elif pattern["name"] == "roi":
@@ -246,7 +247,7 @@ class Cutout(A.DualTransform):
     def __get_seg_label_indices_for_rectangular_cutout(self, seg_label, cla_label, size, max_coverage_ratio):
         indices = self.__get_seg_label_indices_for_rectangular_cutout_helper(seg_label, size)
         while not self.__is_valid_seg_label_indices_for_rectangular_cutout(seg_label, cla_label, indices, max_coverage_ratio):
-            indices = __get_seg_label_indices_for_rectangular_cutout_helper(seg_label, size)
+            indices = self.__get_seg_label_indices_for_rectangular_cutout_helper(seg_label, size)
         return indices
 
     def __is_valid_seg_label_indices_for_rectangular_cutout(self, seg_label, cla_label, indices, max_coverage_ratio):
@@ -277,11 +278,12 @@ class Cutout(A.DualTransform):
         }
 
     def apply(self, image, **params):
-        if params["pattern"] is None or params["indices"] is None:
-            return image
+        result = np.copy(image)
+        if params["indices"] is None:
+            return result
 
-        image[params["indices"]] = 0
-        return image
+        result[params["indices"]] = 0
+        return result
 
     def get_transform_init_args_names(self):
         return { "patterns": self.patterns }
