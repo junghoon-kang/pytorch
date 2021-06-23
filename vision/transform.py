@@ -94,8 +94,8 @@ class RandomCrop(A.DualTransform):
         always_apply=True,
         p=1.0
     ):
-        __is_sequence_of_two_positive_integers(size, "size")
-        __is_sequence_of_two_positive_integers(coverage_size, "coverage_size")
+        is_sequence_of_two_positive_integers(size, "size")
+        is_sequence_of_two_positive_integers(coverage_size, "coverage_size")
         if coverage_size[0] > size[0] or coverage_size[1] > size[1]:
             raise ValueError("coverage_size must be smaller than or equal to size")
 
@@ -111,7 +111,7 @@ class RandomCrop(A.DualTransform):
 
     @property
     def targets_as_params(self):
-        return ["mask"]
+        return ["mask", "cla_label"]
 
     def get_params_dependent_on_targets(self, params):
         seg_label = params["mask"]
@@ -136,10 +136,11 @@ class RandomCrop(A.DualTransform):
                 i = random.randint(0, len(indices[0])-1)
             defect_pivot = (indices[0][i], indices[1][i])
             combined_pivot = (defect_pivot[0] - dh, defect_pivot[1] - dw)
-        coords = self.__get_coords_from_pivot(combined_pivot, self.size)
+        coords = self.__get_coords_from_pivot(seg_label, combined_pivot, self.size)
         return {"coords": coords}
 
-    def __get_coords_from_pivot(self, pivot, size):
+    def __get_coords_from_pivot(self, seg_label, pivot, size):
+        h, w = seg_label.shape[:2]
         h1 = pivot[0] - (size[0] - 1) // 2  # set (h1, w1) to be the top-left point of the patch
         w1 = pivot[1] - (size[1] - 1) // 2
         h2 = h1 + size[0] - 1  # set (h2, w2) to be the bottom-right point of the patch
@@ -203,7 +204,11 @@ class Cutout(A.DualTransform):
             if name == "rectangle":
                 if "size" not in pattern:
                     raise ValueError("retangle pattern must contain size as a key.")
-                __is_sequence_of_two_positive_integers(size, "size")
+                is_sequence_of_two_positive_integers(size, "size")
+                if "max_coverage_ratio" not in pattern:
+                    raise ValueError("pattern must contain max_coverage_ratio as a key.")
+                if not (0 <= pattern["max_coverage_ratio"] <= 1):
+                    raise ValueError("max_coverage_ratio must be between 0 and 1.")
             elif name == "roi":
                 pass
             else:
@@ -217,16 +222,49 @@ class Cutout(A.DualTransform):
 
     @property
     def targets_as_params(self):
-        return ["mask"]
+        return ["mask", "cla_label"]
 
     def get_params_dependent_on_targets(self, params):
-        mask = params["mask"]
-        if params["operation"] is None:
+        if params["pattern"] is None:
             return { "indices": None }
 
-        op = params["operation"]
-        if op["name"] == "rectangle":
-            pass
+        cla_label = params["cla_label"]
+        seg_label = params["mask"]
+        pattern = params["pattern"]
+        if pattern["name"] == "rectangle":
+            indices = self.__get_seg_label_indices_for_rectangular_cutout(seg_label, cla_label, pattern["size"], pattern["max_coverage_ratio"])
+        elif pattern["name"] == "roi":
+            if cla_label != 0:
+                indices = np.where(seg_label == 0)
+            else:
+                indices = None
+        return { "indices": indices }
+
+    def __get_seg_label_indices_for_rectangular_cutout(self, seg_label, cla_label, size, max_coverage_ratio):
+        indices = self.__get_seg_label_indices_for_rectangular_cutout_helper(seg_label, size)
+        while not self.__is_valid_seg_label_indices_for_rectangular_cutout(seg_label, cla_label, indices, max_coverage_ratio):
+            indices = __get_seg_label_indices_for_rectangular_cutout_helper(seg_label, size)
+        return indices
+
+    def __is_valid_seg_label_indices_for_rectangular_cutout(self, seg_label, cla_label, indices, max_coverage_ratio):
+        num_total_pixels = len(np.where(seg_label == cla_label)[0])
+        num_pixels = len(np.where(seg_label[indices] == cla_label)[0])
+        return num_pixels / num_total_pixels <= max_coverage_ratio
+
+    def __get_seg_label_indices_for_rectangular_cutout_helper(self, seg_label, size):
+        h, w = seg_label.shape
+        center = (np.random.randint(0, h), np.random.randint(0, w))
+        indices = []
+        t = center[0] - int(np.floor(size[0]/2))
+        b = center[0] + int(np.ceil(size[0]/2))
+        l = center[1] - int(np.floor(size[1]/2))
+        r = center[1] + int(np.ceil(size[1]/2))
+        if t < 0: t = 0
+        if b > h: b = h
+        if l < 0: l = 0
+        if r > w: r = w
+        indices = np.meshgrid(np.arange(t, b), np.arange(l, r), indexing='ij')
+        return tuple(indices)
 
     @property
     def targets(self):
@@ -236,29 +274,14 @@ class Cutout(A.DualTransform):
         }
 
     def apply(self, image, **params):
-        if params["pattern"] is None:
+        if params["pattern"] is None or params["indices"] is None:
             return image
 
-    def apply_to_mask(self, mask, **params):
-        if params["pattern"] is None:
-            return mask
+        image[params["indices"]] = 0
+        return image
 
     def get_transform_init_args_names(self):
-        return { "operations": self.operations }
-
-def cutout(image, cla_label, seg_label, operation):
-    if name == "rectangle":
-        size = __get_size_for_rectangular_cutout(operation)
-        max_coverage_ratio = __get_max_coverage_ratio_for_cutout(operation)
-        indices = __get_seg_label_indices_for_rectangular_cutout(seg_label, cla_label, size, max_coverage_ratio)
-        image[indices] = 0
-        seg_label[indices] = 0
-    elif name == "roi":
-        if cla_label != 0:
-            image[np.where(seg_label == 0)] = 0
-    else:
-        raise ValueError("name must be one of the following: ['rectangle', 'circle', 'roi']")
-    return np.ascontiguousarray(image), cla_label, np.ascontiguousarray(seg_label)
+        return { "patterns": self.patterns }
 
 
 class To3channel(A.ImageOnlyTransform):
@@ -335,7 +358,7 @@ class ToTensor(A.DualTransform):
         return {}
 
 
-def __is_sequence_of_two_positive_integers(seq, name=""):
+def is_sequence_of_two_positive_integers(seq, name=""):
     if not isinstance(seq, Sequence):
         raise TypeError(f"{name} must be list or tuple")
     if len(seq) != 2:
