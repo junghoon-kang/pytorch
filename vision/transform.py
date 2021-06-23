@@ -13,6 +13,7 @@ __all__ = [
     "Rotate90",
     "ZoomIn",
     "RandomCrop",
+    "Cutout",
     "To3channel",
     "ToTensor",
 ]
@@ -114,12 +115,13 @@ class RandomCrop(A.DualTransform):
         return ["mask", "cla_label"]
 
     def get_params_dependent_on_targets(self, params):
+        cla_label = params["cla_label"]
         seg_label = params["mask"]
         h, w = seg_label.shape[:2]
         if h < self.size[0] or w < self.size[1]:
             raise ValueError(f"Requested crop size ({size[0]}, {size[1]}) is larger than the image size ({h}, {w})")
 
-        if np.sum(seg_label) == 0:
+        if cla_label == 0:
             px = random.randint(self.size[0]//2, h - self.size[0]//2)
             py = random.randint(self.size[1]//2, w - self.size[1]//2)
             combined_pivot = (px, py)  # middle pivot
@@ -129,7 +131,7 @@ class RandomCrop(A.DualTransform):
             dh = coverage_pivot[0] - (self.coverage_size[0] - 1) // 2
             dw = coverage_pivot[1] - (self.coverage_size[1] - 1) // 2
             # pick random point from defect pixels
-            indices = np.where(seg_label != 0)  # TODO: handle the case when there are more than one defect classes by random cropping near the specific defect class
+            indices = np.where(seg_label == cla_label)  # TODO: handle the case when there are more than one defect classes by random cropping near the specific defect class
             if self.fixed:
                 i = 0
             else:
@@ -187,6 +189,7 @@ class Cutout(A.DualTransform):
         self,
         patterns=[
             dict(name="rectangle", size=(64,64), max_coverage_ratio=0.5),
+            dict(name="roi"),
         ],
         always_apply=True,
         p=1.0
@@ -196,7 +199,7 @@ class Cutout(A.DualTransform):
         n = len(patterns) + 1
         self.patterns = [ ((i+1)/n, patterns[i]) for i in range(n-1) ] + [(1,None)]
 
-    def __santiy_check_patterns(self, patterns):
+    def __sanity_check_patterns(self, patterns):
         for pattern in patterns:
             if "name" not in pattern:
                 raise ValueError("pattern must contain name as a key")
@@ -204,7 +207,7 @@ class Cutout(A.DualTransform):
             if name == "rectangle":
                 if "size" not in pattern:
                     raise ValueError("retangle pattern must contain size as a key.")
-                is_sequence_of_two_positive_integers(size, "size")
+                is_sequence_of_two_positive_integers(pattern["size"], "size")
                 if "max_coverage_ratio" not in pattern:
                     raise ValueError("pattern must contain max_coverage_ratio as a key.")
                 if not (0 <= pattern["max_coverage_ratio"] <= 1):
