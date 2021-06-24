@@ -420,44 +420,6 @@ def test_Brightness_3(samples, i):
     assert np.array_equal(label, out_label)
 
 ####################################################################################################
-# ZoomIn
-def test_ZoomIn(samples):
-    for image, label in samples:
-        result = A.Compose([
-            #ZoomIn(scale_limit=(1.2,1.2), interpolation=cv2.INTER_LINEAR, p=1)
-            # Due to interpolation difference between image and label, transformed arrays may not match exactly.
-            # - image: cv2.INTER_LINEAR
-            # - label: cv2.INTER_NEAREST
-            # For testing purpose, we use cv2.INTER_NEAREST interpolation for image as well.
-            ZoomIn(scale_limit=(1.2,1.2), interpolation=cv2.INTER_NEAREST, p=1)
-        ])(image=image, mask=label)
-        out_image = result["image"]
-        out_label = result["mask"]
-
-        assert image.shape == out_image.shape
-        assert label.shape == out_label.shape
-        assert not np.array_equal(label, out_label)
-        image_y, image_x = np.where(image == 255)
-        label_y, label_x = np.where(label == 1)
-        assert np.array_equal(image_y, label_y) and np.array_equal(image_x, label_x)
-        out_image_y, out_image_x = np.where(out_image == 255)
-        out_label_y, out_label_x = np.where(out_label == 1)
-        assert np.array_equal(out_image_y, out_label_y) and np.array_equal(out_image_x, out_label_x)
-
-####################################################################################################
-# Sharpen
-def test_Sharpen(samples):
-    for image, label in samples:
-        result = A.Compose([
-            Sharpen(alpha=(0.2, 0.5), lightness=(0.5, 1.0), p=1)
-        ])(image=image, mask=label)
-        out_image = result["image"]
-        out_label = result["mask"]
-
-        assert np.array_equal(label, out_label)
-        # TODO: write more test cases
-
-####################################################################################################
 # albumentations.GaussianBlur
 def test_GaussianBlur(samples):
     for image, label in samples:
@@ -534,6 +496,7 @@ def test_RandomCrop_3(samples):
         assert np.array_equal(out_image_y, out_label_y) and np.array_equal(out_image_x, out_label_x)
 
 
+####################################################################################################
 if __name__ == "__main__":
     h, w = 512, 512
     image = np.full((h,w), fill_value=50, dtype=np.uint8)
