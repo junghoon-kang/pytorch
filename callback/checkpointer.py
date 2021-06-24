@@ -475,3 +475,13 @@ class ModelCheckpoint(Callback):
         """
         exists = self._fs.exists(filepath)
         return trainer.training_type_plugin.broadcast(exists)
+
+    # FIXME
+    def on_validation_epoch_end(self, trainer: 'pl.Trainer', pl_module: 'pl.LightningModule') -> None:
+        epoch = trainer.current_epoch
+        step = trainer.global_step
+        if epoch == 0 and step == 0:
+            return
+        metrics = deepcopy(trainer.logger_connector.callback_metrics)
+        metrics.update(epoch=epoch, step=step)
+        #print(metrics)
