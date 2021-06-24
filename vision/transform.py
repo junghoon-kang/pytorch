@@ -11,7 +11,6 @@ from skimage.io import imsave
 
 __all__ = [
     "Rotate90",
-    "ZoomIn",
     "RandomCrop",
     "Cutout",
     "To3channel",
@@ -42,48 +41,6 @@ class Rotate90(A.DualTransform):
 
     def get_transform_init_args_names(self):
         return {}
-
-
-class ZoomIn(A.DualTransform):
-    def __init__(
-        self,
-        scale_limit=(1.,1.2),
-        interpolation=cv2.INTER_LINEAR,
-        always_apply=False,
-        p=0.5
-    ):
-        super(ZoomIn, self).__init__(always_apply=always_apply, p=p)
-        self.scale_limit = A.to_tuple(scale_limit, bias=0)
-        self.interpolation = interpolation
-
-    def get_params(self):
-        return { "scale": np.random.uniform(self.scale_limit[0], self.scale_limit[1]) }
-
-    @property
-    def targets_as_params(self):
-        return []
-
-    def get_params_dependent_on_targets(self, params):
-        return {}
-
-    @property
-    def targets(self):
-        return {
-            "image": self.apply,
-            "mask": self.apply_to_mask
-        }
-
-    def apply(self, image, **params):
-        h, w = image.shape[:2]
-        image = A.scale(image, params["scale"], self.interpolation)
-        image = A.center_crop(image, h, w)
-        return image
-
-    def get_transform_init_args_names(self):
-        return {
-            "scale_limit": self.scale_limit,
-            "interpolation": self.interpolation,
-        }
 
 
 class RandomCrop(A.DualTransform):
