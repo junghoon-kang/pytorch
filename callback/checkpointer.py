@@ -62,6 +62,12 @@ class ModelCheckpoint(Callback):
         self.__init_triggers(every_n_train_steps, every_n_val_epochs)
         self.__validate_init_configuration()
 
+        self.logs = {
+            "best_k_models": {},
+            "logs": []
+        }
+        self.log_name = "log.json"
+
     def __init_ckpt_dir(
         self,
         dirpath: Optional[Union[str, Path]],
@@ -146,7 +152,6 @@ class ModelCheckpoint(Callback):
         and subfolder "checkpoints".
         """
         # Todo: required argument `pl_module` is not used
-        #from IPython import embed; embed(); assert False
         if self.dirpath is not None:
             return  # short circuit
 
@@ -199,6 +204,23 @@ class ModelCheckpoint(Callback):
         if skip:
             return
         self.save_checkpoint(trainer)
+
+        # write log
+        epoch = trainer.current_epoch
+        step = trainer.global_step
+        metrics = deepcopy(trainer.logger_connector.callback_metrics)
+        for k, v in metrics.items():
+            metrics[k] = v.item()
+        metrics.update(epoch=epoch, step=step)
+        self.logs["logs"].append(metrics)
+        self.logs["best_k_models"] = {}
+        for path, metrics in self.best_k_models.items():
+            for k, v in metrics.items():
+                if isinstance(v, torch.Tensor):
+                    metrics[k] = v.item()
+            self.logs["best_k_models"][path] = metrics
+        with open(os.path.join(self.dirpath, self.log_name), "w") as f:
+            f.write(json.dumps(self.logs, sort_keys=True, indent=4, ensure_ascii=False))
 
     def __should_skip_saving_checkpoint(self, trainer: "pl.Trainer") -> bool:
         return (
@@ -475,13 +497,3 @@ class ModelCheckpoint(Callback):
         """
         exists = self._fs.exists(filepath)
         return trainer.training_type_plugin.broadcast(exists)
-
-    # FIXME
-    def on_validation_epoch_end(self, trainer: 'pl.Trainer', pl_module: 'pl.LightningModule') -> None:
-        epoch = trainer.current_epoch
-        step = trainer.global_step
-        if epoch == 0 and step == 0:
-            return
-        metrics = deepcopy(trainer.logger_connector.callback_metrics)
-        metrics.update(epoch=epoch, step=step)
-        #print(metrics)
