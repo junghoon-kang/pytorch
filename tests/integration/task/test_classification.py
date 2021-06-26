@@ -260,7 +260,7 @@ if __name__ == "__main__":
         dirpath=os.path.join(logger.root_dir, f"version_{logger.version}"),
         filename="{epoch:03d}-{valid_Recall:.4f}",
         save_last=False,
-        save_top_k=1,
+        save_top_k=3,
         is_better=is_better,
         save_weights_only=False,
         auto_insert_metric_name=True,
@@ -277,7 +277,7 @@ if __name__ == "__main__":
             checkpoint_callback,
         ],
         gpus=1,
-        max_epochs=2,
+        max_epochs=10,
         min_epochs=1
     )
     trainer.fit(model, train_dataloader, valid_dataloader)
