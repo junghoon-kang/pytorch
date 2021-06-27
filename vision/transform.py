@@ -1,4 +1,6 @@
+import math
 import cv2
+import PIL
 import torch
 import random
 import numpy as np
@@ -13,6 +15,7 @@ __all__ = [
     "Rotate90",
     "RandomCrop",
     "Cutout",
+    "Distort",
     "To3channel",
     "ToTensor",
 ]
@@ -242,6 +245,171 @@ class Cutout(A.DualTransform):
 
     def get_transform_init_args_names(self):
         return { "patterns": self.patterns }
+
+
+class Distort(A.DualTransform):
+    def __init__(
+        self,
+        grid_size=(8,8),
+        magnitude=8,
+        always_apply=False,
+        p=0.5
+    ):
+        super(Distort, self).__init__(always_apply=always_apply, p=p)
+        self.grid_size = grid_size
+        self.magnitude = magnitude
+
+    def get_params(self):
+        return {}
+
+    @property
+    def targets_as_params(self):
+        return ["image"]
+
+    def get_params_dependent_on_targets(self, params):
+        boxes = self.__get_boxes(params["image"], self.grid_size)
+        quads = self.__boxes_to_quads(boxes)
+        adjacent_tiles_indices = self.__get_adjacent_tiles_indices(self.grid_size)
+
+        for a, b, c, d in adjacent_tiles_indices:
+            dx = np.random.randint(-self.magnitude, self.magnitude)
+            dy = np.random.randint(-self.magnitude, self.magnitude)
+
+            x1, y1, x2, y2, x3, y3, x4, y4 = quads[a]
+            quads[a] = [
+                x1, y1,
+                x2, y2,
+                x3 + dx, y3 + dy,
+                x4, y4
+            ]
+
+            x1, y1, x2, y2, x3, y3, x4, y4 = quads[b]
+            quads[b] = [
+                x1, y1,
+                x2 + dx, y2 + dy,
+                x3, y3,
+                x4, y4
+            ]
+
+            x1, y1, x2, y2, x3, y3, x4, y4 = quads[c]
+            quads[c] = [
+                x1, y1,
+                x2, y2,
+                x3, y3,
+                x4 + dx, y4 + dy
+            ]
+
+            x1, y1, x2, y2, x3, y3, x4, y4 = quads[d]
+            quads[d] = [
+                x1 + dx, y1 + dy,
+                x2, y2,
+                x3, y3,
+                x4, y4
+            ]
+        return {
+            "boxes": boxes,
+            "quads": quads
+        }
+
+    @property
+    def targets(self):
+        return {
+            "image": self.apply,
+            "mask": self.apply_to_mask
+        }
+
+    def apply(self, image, **params):
+        image = PIL.Image.fromarray(image)
+        image = image.transform(
+            image.size,
+            PIL.Image.MESH,
+            zip(params["boxes"], params["quads"]),
+            resample=PIL.Image.BICUBIC
+        )
+        return np.ascontiguousarray(np.array(image))
+
+    def apply_to_mask(self, mask, **params):
+        mask = PIL.Image.fromarray(mask)
+        mask = mask.transform(
+            mask.size,
+            PIL.Image.MESH,
+            zip(params["boxes"], params["quads"]),
+            resample=PIL.Image.NEAREST
+        )
+        return np.ascontiguousarray(np.array(mask))
+
+    def __get_boxes(self, image, grid_size):
+        H, W = image.shape[:2]
+        cols, rows = grid_size
+
+        tile_width = int(math.floor(W / float(rows)))
+        tile_height = int(math.floor(H / float(cols)))
+        last_tile_width = W - (tile_width * (rows - 1))
+        last_tile_height = H - (tile_height * (cols - 1))
+
+        # Get a box for each tile, where the box is 
+        # (x_min, y_min, x_max, y_max) of the tile.
+        boxes = []
+        for i in range(cols):
+            for j in range(rows):
+                if i == (cols - 1) and j == (rows - 1):
+                    boxes.append([
+                        j * tile_width,
+                        i * tile_height,
+                        last_tile_width + (j * tile_width),
+                        last_tile_height + (tile_height * i)
+                    ])
+                elif i == (cols - 1):
+                    boxes.append([
+                        j * tile_width,
+                        i * tile_height,
+                        tile_width + (j * tile_width),
+                        last_tile_height + (tile_height * i)
+                    ])
+                elif j == (rows - 1):
+                    boxes.append([
+                        j * tile_width,
+                        i * tile_height,
+                        last_tile_width + (j * tile_width),
+                        tile_height + (tile_height * i)
+                    ])
+                else:
+                    boxes.append([
+                        j * tile_width,
+                        i * tile_height,
+                        tile_width + (j * tile_width),
+                        tile_height + (tile_height * i)
+                    ])
+        return boxes
+
+    def __boxes_to_quads(self, boxes):
+        # For quadrilateral warp, need to specify the four corners:
+        # NW, SW, SE, and NE.
+        quads = []
+        for x1, y1, x2, y2 in boxes:
+            quads.append([x1, y1, x1, y2, x2, y2, x2, y1])
+        return quads
+
+    def __get_adjacent_tiles_indices(self, grid_size):
+        cols, rows = grid_size
+
+        last_col_indices = []
+        for i in range(cols):
+            last_col_indices.append(rows*i + (rows-1))
+
+        last_row_indices = list(range((rows*cols) - rows, rows*cols))
+
+        adjacent_tiles_indices = []
+        for i in range((cols * rows) - 1):
+            if i not in last_row_indices and i not in last_col_indices:
+                adjacent_tiles_indices.append([i, i + 1, i + rows, i + 1 + rows])
+        return adjacent_tiles_indices
+
+    def get_transform_init_args_names(self):
+        return {
+            "grid_size": self.grid_size,
+            "magnitude": self.magnitude,
+        }
 
 
 class To3channel(A.ImageOnlyTransform):
