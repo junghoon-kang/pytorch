@@ -269,9 +269,15 @@ class Distort(A.DualTransform):
     def get_params_dependent_on_targets(self, params):
         boxes = self.__get_boxes(params["image"], self.grid_size)
         quads = self.__boxes_to_quads(boxes)
-        adjacent_tiles_indices = self.__get_adjacent_tiles_indices(self.grid_size)
+        (
+            inner_tiles,
+            boundary_tiles_first_row,
+            boundary_tiles_last_row,
+            boundary_tiles_first_col,
+            boundary_tiles_last_col,
+        ) = self.__get_adjacent_tiles_indices(self.grid_size)
 
-        for a, b, c, d in adjacent_tiles_indices:
+        for a, b, c, d in inner_tiles:
             dx = np.random.randint(-self.magnitude, self.magnitude)
             dy = np.random.randint(-self.magnitude, self.magnitude)
 
@@ -306,6 +312,83 @@ class Distort(A.DualTransform):
                 x3, y3,
                 x4, y4
             ]
+
+        for a, b in boundary_tiles_first_row:
+            dx = np.random.randint(-self.magnitude, self.magnitude)
+
+            x1, y1, x2, y2, x3, y3, x4, y4 = quads[a]
+            quads[a] = [
+                x1, y1,
+                x2, y2,
+                x3, y3,
+                x4 + dx, y4
+            ]
+
+            x1, y1, x2, y2, x3, y3, x4, y4 = quads[b]
+            quads[b] = [
+                x1 + dx, y1,
+                x2, y2,
+                x3, y3,
+                x4, y4
+            ]
+
+        for a, b in boundary_tiles_last_row:
+            dx = np.random.randint(-self.magnitude, self.magnitude)
+
+            x1, y1, x2, y2, x3, y3, x4, y4 = quads[a]
+            quads[a] = [
+                x1, y1,
+                x2, y2,
+                x3 + dx, y3,
+                x4, y4
+            ]
+
+            x1, y1, x2, y2, x3, y3, x4, y4 = quads[b]
+            quads[b] = [
+                x1, y1,
+                x2 + dx, y2,
+                x3, y3,
+                x4, y4
+            ]
+
+        for a, b in boundary_tiles_first_col:
+            dy = np.random.randint(-self.magnitude, self.magnitude)
+
+            x1, y1, x2, y2, x3, y3, x4, y4 = quads[a]
+            quads[a] = [
+                x1, y1,
+                x2, y2 + dy,
+                x3, y3,
+                x4, y4
+            ]
+
+            x1, y1, x2, y2, x3, y3, x4, y4 = quads[b]
+            quads[b] = [
+                x1, y1 + dy,
+                x2, y2,
+                x3, y3,
+                x4, y4
+            ]
+
+        for a, b in boundary_tiles_last_col:
+            dy = np.random.randint(-self.magnitude, self.magnitude)
+
+            x1, y1, x2, y2, x3, y3, x4, y4 = quads[a]
+            quads[a] = [
+                x1, y1,
+                x2, y2,
+                x3, y3 + dy,
+                x4, y4
+            ]
+
+            x1, y1, x2, y2, x3, y3, x4, y4 = quads[b]
+            quads[b] = [
+                x1, y1,
+                x2, y2,
+                x3, y3,
+                x4, y4 + dy
+            ]
+
         return {
             "boxes": boxes,
             "quads": quads
@@ -340,45 +423,45 @@ class Distort(A.DualTransform):
 
     def __get_boxes(self, image, grid_size):
         H, W = image.shape[:2]
-        cols, rows = grid_size
+        h, w = grid_size
 
-        tile_width = int(math.floor(W / float(rows)))
-        tile_height = int(math.floor(H / float(cols)))
-        last_tile_width = W - (tile_width * (rows - 1))
-        last_tile_height = H - (tile_height * (cols - 1))
+        tile_width = int(math.floor(W / float(w)))
+        tile_height = int(math.floor(H / float(h)))
+        last_tile_width = W - (tile_width * (w - 1))
+        last_tile_height = H - (tile_height * (h - 1))
 
         # Get a box for each tile, where the box is 
         # (x_min, y_min, x_max, y_max) of the tile.
         boxes = []
-        for i in range(cols):
-            for j in range(rows):
-                if i == (cols - 1) and j == (rows - 1):
+        for i in range(h):
+            for j in range(w):
+                if i == (h - 1) and j == (w - 1):
                     boxes.append([
                         j * tile_width,
                         i * tile_height,
-                        last_tile_width + (j * tile_width),
-                        last_tile_height + (tile_height * i)
+                        j * tile_width + last_tile_width,
+                        i * tile_height + last_tile_height
                     ])
-                elif i == (cols - 1):
+                elif i == (h - 1):
                     boxes.append([
                         j * tile_width,
                         i * tile_height,
-                        tile_width + (j * tile_width),
-                        last_tile_height + (tile_height * i)
+                        j * tile_width + tile_width,
+                        i * tile_height + last_tile_height
                     ])
-                elif j == (rows - 1):
+                elif j == (w - 1):
                     boxes.append([
                         j * tile_width,
                         i * tile_height,
-                        last_tile_width + (j * tile_width),
-                        tile_height + (tile_height * i)
+                        j * tile_width + last_tile_width,
+                        i * tile_height + tile_height
                     ])
                 else:
                     boxes.append([
                         j * tile_width,
                         i * tile_height,
-                        tile_width + (j * tile_width),
-                        tile_height + (tile_height * i)
+                        j * tile_width + tile_width,
+                        i * tile_height + tile_height
                     ])
         return boxes
 
@@ -391,19 +474,48 @@ class Distort(A.DualTransform):
         return quads
 
     def __get_adjacent_tiles_indices(self, grid_size):
-        cols, rows = grid_size
+        h, w = grid_size
 
         last_col_indices = []
-        for i in range(cols):
-            last_col_indices.append(rows*i + (rows-1))
+        for i in range(h):
+            last_col_indices.append(w*i + (w-1))
 
-        last_row_indices = list(range((rows*cols) - rows, rows*cols))
+        last_row_indices = list(range((w*h)-w, w*h))
 
-        adjacent_tiles_indices = []
-        for i in range((cols * rows) - 1):
+        inner_tiles = []
+        for i in range((h * w) - 1):
             if i not in last_row_indices and i not in last_col_indices:
-                adjacent_tiles_indices.append([i, i + 1, i + rows, i + 1 + rows])
-        return adjacent_tiles_indices
+                inner_tiles.append([i, i+1, i+w, i+1+w])
+
+        first_col_indices = []
+        for i in range(h):
+            first_col_indices.append(w*i)
+
+        first_row_indices = list(range(w))
+
+        boundary_tiles_first_row = []
+        for i in range(len(first_row_indices)-1):
+            boundary_tiles_first_row.append( [first_row_indices[i], first_row_indices[i+1]] )
+
+        boundary_tiles_last_row = []
+        for i in range(len(last_row_indices)-1):
+            boundary_tiles_last_row.append( [last_row_indices[i], last_row_indices[i+1]] )
+
+        boundary_tiles_first_col = []
+        for i in range(len(first_col_indices)-1):
+            boundary_tiles_first_col.append( [first_col_indices[i], first_col_indices[i+1]] )
+
+        boundary_tiles_last_col = []
+        for i in range(len(last_col_indices)-1):
+            boundary_tiles_last_col.append( [last_col_indices[i], last_col_indices[i+1]] )
+
+        return (
+            inner_tiles,
+            boundary_tiles_first_row,
+            boundary_tiles_last_row,
+            boundary_tiles_first_col,
+            boundary_tiles_last_col,
+        )
 
     def get_transform_init_args_names(self):
         return {
