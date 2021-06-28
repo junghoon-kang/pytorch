@@ -1,7 +1,6 @@
 import os, sys
 import cv2
 import torch
-import scipy
 import pytest
 import random
 import numpy as np
@@ -19,7 +18,23 @@ def empty_image():
     label = np.zeros((h,w), dtype=np.uint8)
     return (image, label)
 
-def draw_rectangle(image, label, size):
+@pytest.fixture
+def checkerboard_image():
+    N = 512
+    n = 64
+    if N % (2 * n) != 0:
+        raise ValueError("N % (2 * n) != 0")
+    image = np.concatenate((
+        np.zeros(n, dtype=np.uint8),
+        np.ones(n, dtype=np.uint8),
+    ))
+    image = np.pad(image, int(N**2 / 2 - n), mode="wrap").reshape((N,N))
+    image = (image + image.T == 1).astype(np.uint8)
+    image[np.where(image == 1)] = 255
+    label = np.zeros((N,N), dtype=np.uint8)
+    return (image, label)
+
+def draw_rectangle(image, label, size, fill_value=255):
     h, w = image.shape[:2]
     random.seed(47)
     rec_center = (random.randint(0, h-1), random.randint(0, w-1))
@@ -33,11 +48,11 @@ def draw_rectangle(image, label, size):
     if l < 0: l = 0
     if r > w: r = w
     indices = np.meshgrid(np.arange(t, b), np.arange(l, r), indexing='ij')
-    image[tuple(indices)] = 255
+    image[tuple(indices)] = fill_value
     label[tuple(indices)] = 1
     return (image, label)
 
-def draw_circle(image, label, size):
+def draw_circle(image, label, size, fill_value=255):
     h, w = image.shape[:2]
     random.seed(47)
     cir_center = (random.randint(0, h-1), random.randint(0, w-1))
@@ -45,7 +60,7 @@ def draw_circle(image, label, size):
     x, y = np.ogrid[:h,:w]
     dist_from_center = np.sqrt((x - cir_center[0])**2 + (y - cir_center[1])**2)
     bool_indices = dist_from_center <= cir_radius
-    image[bool_indices] = 255
+    image[bool_indices] = fill_value
     label[bool_indices] = 1
     return (image, label)
 
@@ -53,19 +68,31 @@ def draw_circle(image, label, size):
 def rectangle(empty_image):
     image, label = empty_image
     size = (64, 64)
-    return draw_rectangle(image, label, size)
+    return draw_rectangle(image, label, size, fill_value=255)
 
 @pytest.fixture
 def circle(empty_image):
     image, label = empty_image
     size = 64
-    return draw_circle(image, label, size)
+    return draw_circle(image, label, size, fill_value=255)
 
 @pytest.fixture
 def large_rectangle(empty_image):
     image, label = empty_image
     size = (128, 128)
-    return draw_rectangle(image, label, size)
+    return draw_rectangle(image, label, size, fill_value=255)
+
+@pytest.fixture
+def rectangle_on_checkerboard(checkerboard_image):
+    image, label = checkerboard_image
+    size = (64, 64)
+    return draw_rectangle(image, label, size, fill_value=50)
+
+@pytest.fixture
+def large_rectangle_on_checkerboard(checkerboard_image):
+    image, label = checkerboard_image
+    size = (128, 128)
+    return draw_rectangle(image, label, size, fill_value=50)
 
 @pytest.fixture
 def samples(rectangle, circle, large_rectangle):
@@ -74,6 +101,17 @@ def samples(rectangle, circle, large_rectangle):
         circle,
         large_rectangle,
     ]
+
+@pytest.fixture
+def samples_on_checkerboard(
+    rectangle_on_checkerboard,
+    large_rectangle_on_checker_board
+):
+    return [
+        rectangle_on_checkerboard,
+        large_rectangle_on_checker_board,
+    ]
+
 
 ####################################################################################################
 # ToTensor
@@ -268,33 +306,33 @@ def test_Rotate90_3(samples):
 
 ####################################################################################################
 # albumentations.Rotate
-def apply_rotation(image, angle, interpolation=cv2.INTER_NEAREST, border_mode=cv2.BORDER_CONSTANT, value=0):
+def apply_rotation(image, angle, interpolation=cv2.INTER_CUBIC, border_mode=cv2.BORDER_REFLECT_101):
     h, w = image.shape[:2]
     center = w//2, h//2
     matrix = cv2.getRotationMatrix2D(center, angle, scale=1.0)
-    result = cv2.warpAffine(image, M=matrix, dsize=(w, h), flags=interpolation, borderMode=border_mode, borderValue=value)
+    result = cv2.warpAffine(image, M=matrix, dsize=(w, h), flags=interpolation, borderMode=border_mode)
     return result
 
 def test_Rotate_1(samples):
     for image, label in samples:
         result = A.Compose([
-            A.Rotate(limit=(45,45), interpolation=cv2.INTER_NEAREST, border_mode=cv2.BORDER_CONSTANT, value=0, mask_value=0, p=1),
+            A.Rotate(limit=(45,45), interpolation=cv2.INTER_CUBIC, border_mode=cv2.BORDER_REFLECT_101, p=1),
         ])(image=image, mask=label)
         out_image = result["image"]
         out_label = result["mask"]
 
-        assert np.array_equal(apply_rotation(image, 45), out_image)
-        assert np.array_equal(apply_rotation(label, 45), out_label)
+        assert np.array_equal(apply_rotation(image, 45, cv2.INTER_CUBIC, cv2.BORDER_REFLECT_101), out_image)
+        assert np.array_equal(apply_rotation(label, 45, cv2.INTER_NEAREST, cv2.BORDER_REFLECT_101), out_label)
 
 def test_Rotate_2(samples):
     for image, label in samples:
         result = A.Compose([
-            #A.Rotate(limit=(45,45), interpolation=cv2.INTER_LINEAR, border_mode=cv2.BORDER_CONSTANT, value=0, mask_value=0, p=1),
+            #A.Rotate(limit=(45,45), interpolation=cv2.INTER_CUBIC, border_mode=cv2.BORDER_REFLECT_101, p=1)
             # Due to interpolation difference between image and label, transformed arrays may not match exactly.
-            # - image: cv2.INTER_LINEAR
+            # - image: cv2.INTER_CUBIC
             # - label: cv2.INTER_NEAREST
-            # For testing purpose, we use cv2.INTER_NEAREST interpolation for image as well.
-            A.Rotate(limit=(45,45), interpolation=cv2.INTER_NEAREST, border_mode=cv2.BORDER_CONSTANT, value=0, mask_value=0, p=1),
+            # For testing purpose, we use cv2.INTER_NEAREST interpolation for the input image as well.
+            A.Rotate(limit=(45,45), interpolation=cv2.INTER_NEAREST, border_mode=cv2.BORDER_REFLECT_101, p=1),
         ])(image=image, mask=label)
         out_image = result["image"]
         out_label = result["mask"]
@@ -307,13 +345,13 @@ def test_Rotate_3(samples):
     for image, label in samples:
         result = A.Compose([
             To3channel(),
-            A.Rotate(limit=(45,45), interpolation=cv2.INTER_NEAREST, border_mode=cv2.BORDER_CONSTANT, value=0, mask_value=0, p=1),
+            A.Rotate(limit=(45,45), interpolation=cv2.INTER_CUBIC, border_mode=cv2.BORDER_REFLECT_101, p=1),
         ])(image=image, mask=label)
         out_image = result["image"]
         out_label = result["mask"]
 
-        assert np.array_equal(apply_rotation(image, 45), out_image[:,:,0])
-        assert np.array_equal(apply_rotation(label, 45), out_label)
+        assert np.array_equal(apply_rotation(image, 45, cv2.INTER_CUBIC), out_image[:,:,0])
+        assert np.array_equal(apply_rotation(label, 45, cv2.INTER_NEAREST), out_label)
 
 ####################################################################################################
 # albumentations.RandomBrightnessContrast
@@ -421,6 +459,7 @@ def test_Brightness_3(samples, i):
 
 ####################################################################################################
 # albumentations.GaussianBlur
+# TODO: write more test cases
 def test_GaussianBlur(samples):
     for image, label in samples:
         result = A.Compose([
@@ -430,20 +469,40 @@ def test_GaussianBlur(samples):
         out_label = result["mask"]
 
         assert np.array_equal(label, out_label)
-        # TODO: write more test cases
 
 ####################################################################################################
 # albumentations.MultiplicativeNoise
-def test_MultiplicativeNoise(samples):
-    for image, label in samples:
-        result = A.Compose([
-            A.MultiplicativeNoise(multiplier=(0,2), per_channel=False, elementwise=True)
-        ])(image=image, mask=label)
-        out_image = result["image"]
-        out_label = result["mask"]
+def multiply(image, multiplier=2):
+    lut = np.arange(0, 256).astype(np.float32)
+    lut *= multiplier
+    lut = np.clip(lut, 0, 255).astype(np.uint8)
+    result = cv2.LUT(image, lut)
+    return result
 
-        assert np.array_equal(label, out_label)
-        # TODO: write more test cases
+@pytest.mark.parametrize("i", range(3))
+def test_MultiplicativeNoise_1(samples, i):
+    image, label = samples[i]
+    result = A.Compose([
+        A.MultiplicativeNoise(multiplier=(2,2), per_channel=False, elementwise=True)
+    ])(image=image, mask=label)
+    out_image = result["image"]
+    out_label = result["mask"]
+
+    assert np.array_equal(multiply(image, 2), out_image), f"\n\n{np.histogram(np.multiply(image,2))}\n\n{np.histogram(out_image)}\n\n"
+    assert np.array_equal(label, out_label)
+
+@pytest.mark.parametrize("i", range(3))
+def test_MultiplicativeNoise_2(samples, i):
+    image, label = samples[i]
+    result = A.Compose([
+        To3channel(),
+        A.MultiplicativeNoise(multiplier=(2,2), per_channel=False, elementwise=True)
+    ])(image=image, mask=label)
+    out_image = result["image"]
+    out_label = result["mask"]
+
+    assert np.array_equal(out_image[:,:,0], out_image[:,:,1])
+    assert np.array_equal(out_image[:,:,0], out_image[:,:,2])
 
 ####################################################################################################
 # RandomCrop
@@ -495,6 +554,13 @@ def test_RandomCrop_3(samples):
         out_label_y, out_label_x = np.where(out_label == 1)
         assert np.array_equal(out_image_y, out_label_y) and np.array_equal(out_image_x, out_label_x)
 
+####################################################################################################
+# Cutout
+# TODO: write test cases
+
+####################################################################################################
+# Distort
+# TODO: write test cases
 
 ####################################################################################################
 if __name__ == "__main__":
