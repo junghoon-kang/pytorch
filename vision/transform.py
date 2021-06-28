@@ -12,13 +12,87 @@ from skimage.io import imsave
 
 
 __all__ = [
+    "ToTensor",
+    "To3channel",
     "Rotate90",
     "RandomCrop",
     "Cutout",
     "Distort",
-    "To3channel",
-    "ToTensor",
 ]
+
+
+class ToTensor(A.DualTransform):
+    def __init__(self, always_apply=True, p=1):
+        super(ToTensor, self).__init__(always_apply=always_apply, p=p)
+
+    def get_params(self):
+        return {}
+
+    @property
+    def targets_as_params(self):
+        return []
+
+    def get_params_dependent_on_targets(self, params):
+        return {}
+
+    @property
+    def targets(self):
+        return {
+            "image": self.apply,
+            "mask": self.apply_to_mask
+        }
+
+    def apply(self, image, **params):
+        if image.ndim == 2:
+            image = np.expand_dims(image, 2)
+        image = image.transpose(2, 0, 1)
+        tensor = torch.from_numpy(image)
+        return tensor.contiguous().float()
+
+    def apply_to_mask(self, mask, **params):
+        tensor = torch.from_numpy(mask)
+        return tensor.contiguous()
+
+    def get_transform_init_args_names(self):
+        return {}
+
+
+class To3channel(A.ImageOnlyTransform):
+    def __init__(self, always_apply=True, p=1):
+        super(To3channel, self).__init__(always_apply=always_apply, p=p)
+
+    def get_params(self):
+        return {}
+
+    @property
+    def targets_as_params(self):
+        return []
+
+    def get_params_dependent_on_targets(self, params):
+        return {}
+
+    @property
+    def targets(self):
+        return { "image": self.apply }
+
+    def apply(self, image, **params):
+        if image.ndim == 2:
+            return np.dstack((image,)*3)
+        elif image.ndim == 3:
+            c = image.shape[2]
+            if c == 1:
+                return np.dstack((image,)*3)
+            elif c == 3:
+                return image
+            elif c == 4:
+                return image[:,:,:3]
+            else:
+                raise ValueError(f"Number of channels of input image must be 1, 3, or 4. num_channels = {c}.")
+        else:
+            raise ValueError(f"Dimension of input image must be 2 or 3. image.ndim = {image.ndim}.")
+
+    def get_transform_init_args_names(self):
+        return {}
 
 
 class Rotate90(A.DualTransform):
@@ -61,8 +135,8 @@ class RandomCrop(A.DualTransform):
             raise ValueError("coverage_size must be smaller than or equal to size")
 
         super(RandomCrop, self).__init__(always_apply=always_apply, p=p)
-        self.size = tuple(int(size[0]), int(size[1]))
-        self.coverage_size = tuple(int(coverage_size[0]), int(coverage_size[1]))
+        self.size = ( int(size[0]), int(size[1]) )
+        self.coverage_size = ( int(coverage_size[0]), int(coverage_size[1]) )
         self.fixed = fixed
         if self.fixed:
             self.coverage_size = (1,1)
@@ -524,80 +598,6 @@ class Distort(A.DualTransform):
         }
 
 
-class To3channel(A.ImageOnlyTransform):
-    def __init__(self, always_apply=True, p=1):
-        super(To3channel, self).__init__(always_apply=always_apply, p=p)
-
-    def get_params(self):
-        return {}
-
-    @property
-    def targets_as_params(self):
-        return []
-
-    def get_params_dependent_on_targets(self, params):
-        return {}
-
-    @property
-    def targets(self):
-        return { "image": self.apply }
-
-    def apply(self, image, **params):
-        if image.ndim == 2:
-            return np.dstack((image,)*3)
-        elif image.ndim == 3:
-            c = image.shape[2]
-            if c == 1:
-                return np.dstack((image,)*3)
-            elif c == 3:
-                return image
-            elif c == 4:
-                return image[:,:,:3]
-            else:
-                raise ValueError(f"Number of channels of input image must be 1, 3, or 4. num_channels = {c}.")
-        else:
-            raise ValueError(f"Dimension of input image must be 2 or 3. image.ndim = {image.ndim}.")
-
-    def get_transform_init_args_names(self):
-        return {}
-
-
-class ToTensor(A.DualTransform):
-    def __init__(self, always_apply=True, p=1):
-        super(ToTensor, self).__init__(always_apply=always_apply, p=p)
-
-    def get_params(self):
-        return {}
-
-    @property
-    def targets_as_params(self):
-        return []
-
-    def get_params_dependent_on_targets(self, params):
-        return {}
-
-    @property
-    def targets(self):
-        return {
-            "image": self.apply,
-            "mask": self.apply_to_mask
-        }
-
-    def apply(self, image, **params):
-        if image.ndim == 2:
-            image = np.expand_dims(image, 2)
-        image = image.transpose(2, 0, 1)
-        tensor = torch.from_numpy(image)
-        return tensor.contiguous().float()
-
-    def apply_to_mask(self, mask, **params):
-        tensor = torch.from_numpy(mask)
-        return tensor.contiguous()
-
-    def get_transform_init_args_names(self):
-        return {}
-
-
 def is_sequence_of_two_positive_numbers(seq, name=""):
     if not isinstance(seq, Sequence):
         raise TypeError(f"{name} must be list or tuple")
@@ -607,7 +607,3 @@ def is_sequence_of_two_positive_numbers(seq, name=""):
         raise TypeError(f"{name} must be list or tuple of integers or floats")
     if seq[0] <= 0 or seq[1] <= 0:
         raise ValueError(f"{name} must be greater than 0")
-
-
-if __name__ == "__main__":
-    from IPython import embed; embed(); assert False
