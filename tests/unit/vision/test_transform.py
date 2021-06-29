@@ -12,14 +12,7 @@ from vision.transform import *
 
 
 @pytest.fixture
-def empty_image():
-    h, w = 512, 512
-    image = np.full((h,w), fill_value=50, dtype=np.uint8)
-    label = np.zeros((h,w), dtype=np.uint8)
-    return (image, label)
-
-@pytest.fixture
-def checkerboard_image():
+def checkerboard():
     N = 512
     n = 64
     if N % (2 * n) != 0:
@@ -34,9 +27,9 @@ def checkerboard_image():
     label = np.zeros((N,N), dtype=np.uint8)
     return (image, label)
 
-def draw_rectangle(image, label, size, fill_value=255):
+def draw_rectangle(image, label, size, fill_value=50, seed=47):
     h, w = image.shape[:2]
-    random.seed(47)
+    random.seed(seed)
     rec_center = (random.randint(0, h-1), random.randint(0, w-1))
     rec_size = size
     t = rec_center[0] - int(np.floor(rec_size[0]/2))
@@ -52,9 +45,9 @@ def draw_rectangle(image, label, size, fill_value=255):
     label[tuple(indices)] = 1
     return (image, label)
 
-def draw_circle(image, label, size, fill_value=255):
+def draw_circle(image, label, size, fill_value=50, seed=47):
     h, w = image.shape[:2]
-    random.seed(47)
+    random.seed(seed)
     cir_center = (random.randint(0, h-1), random.randint(0, w-1))
     cir_radius = size
     x, y = np.ogrid[:h,:w]
@@ -65,32 +58,20 @@ def draw_circle(image, label, size, fill_value=255):
     return (image, label)
 
 @pytest.fixture
-def rectangle(empty_image):
-    image, label = empty_image
-    size = (64, 64)
-    return draw_rectangle(image, label, size, fill_value=255)
-
-@pytest.fixture
-def circle(empty_image):
-    image, label = empty_image
-    size = 64
-    return draw_circle(image, label, size, fill_value=255)
-
-@pytest.fixture
-def large_rectangle(empty_image):
-    image, label = empty_image
-    size = (128, 128)
-    return draw_rectangle(image, label, size, fill_value=255)
-
-@pytest.fixture
-def rectangle_on_checkerboard(checkerboard_image):
-    image, label = checkerboard_image
+def rectangle(checkerboard):
+    image, label = checkerboard
     size = (64, 64)
     return draw_rectangle(image, label, size, fill_value=50)
 
 @pytest.fixture
-def large_rectangle_on_checkerboard(checkerboard_image):
-    image, label = checkerboard_image
+def circle(checkerboard):
+    image, label = checkerboard
+    size = 64
+    return draw_circle(image, label, size, fill_value=50)
+
+@pytest.fixture
+def large_rectangle(checkerboard):
+    image, label = checkerboard
     size = (128, 128)
     return draw_rectangle(image, label, size, fill_value=50)
 
@@ -100,16 +81,6 @@ def samples(rectangle, circle, large_rectangle):
         rectangle,
         circle,
         large_rectangle,
-    ]
-
-@pytest.fixture
-def samples_on_checkerboard(
-    rectangle_on_checkerboard,
-    large_rectangle_on_checker_board
-):
-    return [
-        rectangle_on_checkerboard,
-        large_rectangle_on_checker_board,
     ]
 
 
@@ -203,7 +174,7 @@ def test_HorizontalFlip_3(samples):
         out_image = result["image"]
         out_label = result["mask"]
 
-        out_image_y, out_image_x = np.where(out_image == 255)
+        out_image_y, out_image_x = np.where(out_image == 50)
         out_label_y, out_label_x = np.where(out_label == 1)
         assert np.array_equal(out_image_y, out_label_y) and np.array_equal(out_image_x, out_label_x)
 
@@ -251,7 +222,7 @@ def test_VerticalFlip_2(samples):
         out_image = result["image"]
         out_label = result["mask"]
 
-        out_image_y, out_image_x = np.where(out_image == 255)
+        out_image_y, out_image_x = np.where(out_image == 50)
         out_label_y, out_label_x = np.where(out_label == 1)
         assert np.array_equal(out_image_y, out_label_y) and np.array_equal(out_image_x, out_label_x)
 
@@ -288,7 +259,7 @@ def test_Rotate90_2(samples):
         out_image = result["image"]
         out_label = result["mask"]
 
-        out_image_y, out_image_x = np.where(out_image == 255)
+        out_image_y, out_image_x = np.where(out_image == 50)
         out_label_y, out_label_x = np.where(out_label == 1)
         assert np.array_equal(out_image_y, out_label_y) and np.array_equal(out_image_x, out_label_x)
 
@@ -337,7 +308,7 @@ def test_Rotate_2(samples):
         out_image = result["image"]
         out_label = result["mask"]
 
-        out_image_y, out_image_x = np.where(out_image == 255)
+        out_image_y, out_image_x = np.where(out_image == 50)
         out_label_y, out_label_x = np.where(out_label == 1)
         assert np.array_equal(out_image_y, out_label_y) and np.array_equal(out_image_x, out_label_x)
 
@@ -354,7 +325,7 @@ def test_Rotate_3(samples):
         assert np.array_equal(apply_rotation(label, 45, cv2.INTER_NEAREST), out_label)
 
 ####################################################################################################
-# albumentations.RandomBrightnessContrast
+# albumentations.RandomBrightnessContrast (Contrast)
 def apply_contrast(image, alpha=1):
     alpha += 1
     lut = np.arange(0, 255+1).astype(np.float32)
@@ -383,7 +354,7 @@ def test_Contrast_2(samples):
         out_image = result["image"]
         out_label = result["mask"]
 
-        out_image_y, out_image_x = np.where(out_image == 255)
+        out_image_y, out_image_x = np.where(out_image == 50*2)
         out_label_y, out_label_x = np.where(out_label == 1)
         assert np.array_equal(out_image_y, out_label_y) and np.array_equal(out_image_x, out_label_x)
 
@@ -413,6 +384,8 @@ def test_Contrast_3(samples, i):
     assert np.array_equal(apply_contrast(image, 1), out_image[:,:,0]), f"\n\n{np.histogram(apply_contrast(image, 2))}\n\n{np.histogram(out_image[:,:,0])}\n\n"
     assert np.array_equal(label, out_label)
 
+####################################################################################################
+# albumentations.RandomBrightnessContrast (Brightness)
 def apply_brightness(image, beta=0.5):
     lut = np.arange(0, 255+1).astype(np.float32)
     if beta != 0:
@@ -440,7 +413,7 @@ def test_Brightness_2(samples):
         out_image = result["image"]
         out_label = result["mask"]
 
-        out_image_y, out_image_x = np.where(out_image == 255)
+        out_image_y, out_image_x = np.where(out_image == 50+255//2)
         out_label_y, out_label_x = np.where(out_label == 1)
         assert np.array_equal(out_image_y, out_label_y) and np.array_equal(out_image_x, out_label_x)
 
@@ -456,53 +429,6 @@ def test_Brightness_3(samples, i):
 
     assert np.array_equal(apply_brightness(image, 0.5), out_image[:,:,0]), f"\n\n{np.histogram(apply_brightness(image, 0.5))}\n\n{np.histogram(out_image[:,:,0])}\n\n"
     assert np.array_equal(label, out_label)
-
-####################################################################################################
-# albumentations.GaussianBlur
-# TODO: write more test cases
-def test_GaussianBlur(samples):
-    for image, label in samples:
-        result = A.Compose([
-            A.GaussianBlur(blur_limit=(5,5), sigma_limit=(0,2))
-        ])(image=image, mask=label)
-        out_image = result["image"]
-        out_label = result["mask"]
-
-        assert np.array_equal(label, out_label)
-
-####################################################################################################
-# albumentations.MultiplicativeNoise
-def multiply(image, multiplier=2):
-    lut = np.arange(0, 256).astype(np.float32)
-    lut *= multiplier
-    lut = np.clip(lut, 0, 255).astype(np.uint8)
-    result = cv2.LUT(image, lut)
-    return result
-
-@pytest.mark.parametrize("i", range(3))
-def test_MultiplicativeNoise_1(samples, i):
-    image, label = samples[i]
-    result = A.Compose([
-        A.MultiplicativeNoise(multiplier=(2,2), per_channel=False, elementwise=True)
-    ])(image=image, mask=label)
-    out_image = result["image"]
-    out_label = result["mask"]
-
-    assert np.array_equal(multiply(image, 2), out_image), f"\n\n{np.histogram(np.multiply(image,2))}\n\n{np.histogram(out_image)}\n\n"
-    assert np.array_equal(label, out_label)
-
-@pytest.mark.parametrize("i", range(3))
-def test_MultiplicativeNoise_2(samples, i):
-    image, label = samples[i]
-    result = A.Compose([
-        To3channel(),
-        A.MultiplicativeNoise(multiplier=(2,2), per_channel=False, elementwise=True)
-    ])(image=image, mask=label)
-    out_image = result["image"]
-    out_label = result["mask"]
-
-    assert np.array_equal(out_image[:,:,0], out_image[:,:,1])
-    assert np.array_equal(out_image[:,:,0], out_image[:,:,2])
 
 ####################################################################################################
 # RandomCrop
@@ -533,7 +459,7 @@ def test_RandomCrop_2(samples):
         out_image = result["image"]
         out_label = result["mask"]
 
-        out_image_y, out_image_x = np.where(out_image == 255)
+        out_image_y, out_image_x = np.where(out_image == 50)
         out_label_y, out_label_x = np.where(out_label == 1)
         assert np.array_equal(out_image_y, out_label_y) and np.array_equal(out_image_x, out_label_x)
 
@@ -550,7 +476,7 @@ def test_RandomCrop_3(samples):
         out_image = result["image"]
         out_label = result["mask"]
 
-        out_image_y, out_image_x = np.where(out_image[:,:,0] == 255)
+        out_image_y, out_image_x = np.where(out_image[:,:,0] == 50)
         out_label_y, out_label_x = np.where(out_label == 1)
         assert np.array_equal(out_image_y, out_label_y) and np.array_equal(out_image_x, out_label_x)
 
