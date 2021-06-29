@@ -70,7 +70,7 @@ def dataloaders():
 
     train_dataloader = DataLoader(
         train_dataset,
-        batch_size=32,
+        batch_size=16,
         sampler=sampler(train_dataset),
         shuffle=False,
         num_workers=4,
@@ -79,7 +79,7 @@ def dataloaders():
 
     valid_dataloader = DataLoader(
         valid_dataset,
-        batch_size=32,
+        batch_size=16,
         shuffle=False,
         num_workers=4,
         pin_memory=True
@@ -87,7 +87,7 @@ def dataloaders():
 
     test_dataloader = DataLoader(
         test_dataset,
-        batch_size=32,
+        batch_size=16,
         shuffle=False,
         num_workers=4,
         pin_memory=True
