@@ -66,7 +66,7 @@ class ModelCheckpoint(Callback):
             "best_k_models": {},
             "logs": []
         }
-        self.log_name = "log.json"
+        self.log_name = "train_log.json"
 
     def __init_ckpt_dir(
         self,
