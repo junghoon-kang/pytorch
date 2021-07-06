@@ -2,7 +2,6 @@ import math
 import cv2
 import PIL
 import torch
-import random
 import numpy as np
 import albumentations as A
 from typing import Sequence
@@ -156,12 +155,12 @@ class RandomCrop(A.DualTransform):
             raise ValueError(f"Requested crop size ({size[0]}, {size[1]}) is larger than the image size ({h}, {w})")
 
         if cla_label == 0:
-            px = random.randint(self.size[0]//2, h - self.size[0]//2)
-            py = random.randint(self.size[1]//2, w - self.size[1]//2)
+            px = np.random.randint(self.size[0]//2, h - self.size[0]//2 + 1)
+            py = np.random.randint(self.size[1]//2, w - self.size[1]//2 + 1)
             combined_pivot = (px, py)  # middle pivot
         else:
             # pick random point from the coverage box
-            coverage_pivot = tuple(map(lambda l: random.randint(0, l-1), self.coverage_size))
+            coverage_pivot = tuple(map(lambda l: np.random.randint(0, l), self.coverage_size))
             dh = coverage_pivot[0] - (self.coverage_size[0] - 1) // 2
             dw = coverage_pivot[1] - (self.coverage_size[1] - 1) // 2
             # pick random point from defect pixels
@@ -169,7 +168,7 @@ class RandomCrop(A.DualTransform):
             if self.fixed:
                 i = 0
             else:
-                i = random.randint(0, len(indices[0])-1)
+                i = np.random.randint(0, len(indices[0]))
             defect_pivot = (indices[0][i], indices[1][i])
             combined_pivot = (defect_pivot[0] - dh, defect_pivot[1] - dw)
         coords = self.__get_coords_from_pivot(seg_label, combined_pivot, self.size)
@@ -352,8 +351,8 @@ class Distort(A.DualTransform):
         ) = self.__get_adjacent_tiles_indices(self.grid_size)
 
         for a, b, c, d in inner_tiles:
-            dx = np.random.randint(-self.magnitude, self.magnitude)
-            dy = np.random.randint(-self.magnitude, self.magnitude)
+            dx = np.random.randint(-self.magnitude, self.magnitude + 1)
+            dy = np.random.randint(-self.magnitude, self.magnitude + 1)
 
             x1, y1, x2, y2, x3, y3, x4, y4 = quads[a]
             quads[a] = [
@@ -388,7 +387,7 @@ class Distort(A.DualTransform):
             ]
 
         for a, b in boundary_tiles_first_row:
-            dx = np.random.randint(-self.magnitude, self.magnitude)
+            dx = np.random.randint(-self.magnitude, self.magnitude + 1)
 
             x1, y1, x2, y2, x3, y3, x4, y4 = quads[a]
             quads[a] = [
@@ -407,7 +406,7 @@ class Distort(A.DualTransform):
             ]
 
         for a, b in boundary_tiles_last_row:
-            dx = np.random.randint(-self.magnitude, self.magnitude)
+            dx = np.random.randint(-self.magnitude, self.magnitude + 1)
 
             x1, y1, x2, y2, x3, y3, x4, y4 = quads[a]
             quads[a] = [
@@ -426,7 +425,7 @@ class Distort(A.DualTransform):
             ]
 
         for a, b in boundary_tiles_first_col:
-            dy = np.random.randint(-self.magnitude, self.magnitude)
+            dy = np.random.randint(-self.magnitude, self.magnitude + 1)
 
             x1, y1, x2, y2, x3, y3, x4, y4 = quads[a]
             quads[a] = [
@@ -445,7 +444,7 @@ class Distort(A.DualTransform):
             ]
 
         for a, b in boundary_tiles_last_col:
-            dy = np.random.randint(-self.magnitude, self.magnitude)
+            dy = np.random.randint(-self.magnitude, self.magnitude + 1)
 
             x1, y1, x2, y2, x3, y3, x4, y4 = quads[a]
             quads[a] = [
