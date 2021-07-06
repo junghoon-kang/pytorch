@@ -75,7 +75,7 @@ def test_ClassificationDataset_3(dataset_path):
         assert isinstance(y, torch.Tensor)
         assert y.shape == torch.Size([1])
         assert y.dtype == torch.int64
-        assert isinstance(name, list)
+        assert isinstance(name, (list, tuple))
         assert len(name) == 1
         assert isinstance(name[0], str)
         break
@@ -164,7 +164,7 @@ def test_SegmentationDataset_3(dataset_path):
         assert isinstance(y, torch.Tensor)
         assert y.shape == torch.Size([1,512,512])
         assert y.dtype == torch.uint8
-        assert isinstance(name, list)
+        assert isinstance(name, (list, tuple))
         assert len(name) == 1
         assert isinstance(name[0], str)
         break

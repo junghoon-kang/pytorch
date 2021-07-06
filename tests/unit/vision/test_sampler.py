@@ -29,13 +29,13 @@ def dataset(dataset_path):
     )
 
 def test_WeightedSampler(dataset):
-    # sanity check dataset
-    assert len(dataset.subsets) == 2
-    assert len(dataset.subsets[0]) == 397
-    assert len(dataset.subsets[1]) == 64
-
     # create sampler
     sampler = WeightedSampler(weights=[3,1])(dataset)
+
+    # sanity check dataset
+    assert len(sampler.subsets) == 2
+    assert len(sampler.subsets[0]) == 397
+    assert len(sampler.subsets[1]) == 64
 
     # check sampler's subset size
     assert len(sampler.subsets[0]) == 397
