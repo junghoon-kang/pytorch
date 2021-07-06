@@ -27,27 +27,6 @@ class ImageDataset(object):
     def __len__(self):
         raise NotImplementedError
 
-    def get_subsets(self, annotation):
-        """ Divide annotation into the sets of different classes.
-
-        Args:
-            annotation (list[tuple[str,int,str]]): 
-                the list of tuples where each tuple consists of an image path,
-                a classification label, and a segmentation label path.
-            num_classes (int): the total number of classes.
-
-        Returns:
-            subsets (list[list[int]]): 
-                the list of class lists where each class list contains the
-                index of annotation of the same class.
-        """
-        subsets = []
-        for label in range(annotation.num_classes):
-            subsets.append([])
-        for i in range(len(annotation)):
-            subsets[annotation[i].cla_label].append(i)
-        return subsets
-
     def get_one_hot_cla_label(self, label, num_classes):
         """ Converts the classification label into one hot classification label
         format.
@@ -92,7 +71,6 @@ class ClassificationDataset(ImageDataset):
 
         self.annotation = annotation
         self.transforms = A.Compose(transforms)
-        self.subsets = self.get_subsets(annotation)
         self.one_hot = one_hot
         self.num_classes = annotation.num_classes
 
@@ -134,7 +112,6 @@ class SegmentationDataset(ImageDataset):
 
         self.annotation = annotation
         self.transforms = A.Compose(transforms)
-        self.subsets = self.get_subsets(annotation)
         self.one_hot = one_hot
         self.num_classes = annotation.num_classes
 
