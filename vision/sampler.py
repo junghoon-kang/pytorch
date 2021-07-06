@@ -1,8 +1,5 @@
-import math
-import random
 import numpy as np
 import torch.utils.data
-import torch.distributed
 
 
 __all__ = ["RandomSampler", "WeightedSampler"]
@@ -25,15 +22,15 @@ class RandomSampler(torch.utils.data.Sampler):
         pass
 
     def __call__(self, dataset):
-        self.dataset = dataset
+        self.size = len(dataset)
         return self
 
     def __iter__(self):
-        indices = list(range(len(self.dataset)))
+        indices = list(range(self.size))
         return iter(shuffle(indices))
 
     def __len__(self):
-        return len(self.dataset)
+        return self.size
 
 class WeightedSampler(torch.utils.data.Sampler):
     def __init__(self, weights=None):
@@ -85,4 +82,4 @@ class WeightedSampler(torch.utils.data.Sampler):
             raise ValueError("weighted_subset_size should not be smaller than subset_size")
         q = weighted_subset_size // subset_size
         r = weighted_subset_size % subset_size
-        return q * subset + random.sample(subset, r)
+        return q * subset + np.random.choice(subset, r).tolist()
