@@ -1,36 +1,56 @@
-Trainer(ModelCheckpointer, Logger, EarlyStopper)
-    fit(Task, DataLoader, DataLoader) -> Model path
-    test(Task, DataLoader) -> Result path
+#!/bin/bash
 
-Task(Network, Criterion, Optimizer, LRScheduler, Regulerizer, Metrics)  # TODO: SWA, Augmix
-    Classification
-    Segmentation
+Trainer(Logger, [Callback])
 
-Result()
+Logger()
+    TensorBoardLogger()
 
-MetricsCombiner()
+Callback()
+    # TODO: EarlyStopper()
+    LearningRateMonitor()
+    ModelCheckpoint()
+
+# TODO: design Result()
+
+#####################################################################
+# learner/, task/
+Task(Network, Criterion, Optimizer, Scheduler, Regulerizer, Metrics)
+    # TODO: SWA(), Augmix()
+    Classification()
+        Trainer.fit(Classification, DataLoader, DataLoader)
+        Trainer.test(Classification, DataLoader) -> Result() path
+    Segmentation()
+
+#####################################################################
+# vision/
+DataLoader(Dataset, Sampler)
+
+Dataset(Annotation, [Transform])
+    # TODO: prefetch minibatch, preprocess
+    ClassificationDataset()
+    SegmentationDataset()
+
+Annotation()
+    SingleImageAnnotation()
+    MultiImageAnnotation()
+    PairImageAnnotation()
+
+Transform()
+    albumentations.DualTransform
+    albumentations.ImageOnlyTransform
+
+Sampler()
+    RandomSampler()
+    WeightedSampler()
 
 
-vision/
-    DataLoader(Dataset, Sampler)
+#####################################################################
+# visualizer/
+GradCAM(Network, layer_name)
+    Trainer.fit(GradCAM, DataLoader) -> Result() path
+    # cannot use Trainer.test as we need backward gradient
+    # and backward gradient can be acquired from training phase only
+    # TODO: check again
 
-    Dataset(Annotation, Transform)
-        ClassificationDataset()
-        SegmentationDataset()
-
-    Annotation()
-        SingleImageAnnotation()
-        MultiImageAnnotation()
-        PairImageAnnotation()
-
-    Transform()
-
-    Sampler()
-        RandomSampler()
-        WeightedSampler()
-
-
-visualizer/
-    GradCAM(Network, layer_name) -> checkpoint_path (of mask images)
-
-    ActivationMap(Network, layer_names) -> checkpoint_path (of mask images)
+ActivationMap(Network, layer_names)
+    Trainer.fit(ActivationMap, DataLoader) -> Result() path
