@@ -4,6 +4,7 @@ import torch.utils.data
 
 __all__ = ["RandomSampler", "WeightedSampler"]
 
+
 def shuffle(*arys):
     """ Shuffles multiple input arrays in the same order.
 
@@ -16,6 +17,7 @@ def shuffle(*arys):
     if len(shuffled) == 1:
         return shuffled[0]
     return shuffled
+
 
 class RandomSampler(torch.utils.data.Sampler):
     def __init__(self):
@@ -31,6 +33,7 @@ class RandomSampler(torch.utils.data.Sampler):
 
     def __len__(self):
         return self.size
+
 
 class WeightedSampler(torch.utils.data.Sampler):
     def __init__(self, weights=None):
@@ -99,7 +102,7 @@ class WeightedSampler(torch.utils.data.Sampler):
         if weighted_subset_size == 0 or subset_size == 0:
             return []
         if weighted_subset_size < subset_size:
-            raise ValueError("weighted_subset_size should not be smaller than subset_size")
+            raise ValueError("weighted_subset_size must not be smaller than subset_size")
         q = weighted_subset_size // subset_size
         r = weighted_subset_size % subset_size
-        return q * subset + np.random.choice(subset, r).tolist()
+        return q * subset + np.random.choice(subset, r, replace=False).tolist()
