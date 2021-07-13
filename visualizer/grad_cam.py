@@ -12,7 +12,7 @@ __all__ = [
 
 
 class GradCAM(LightningModule):
-    def __init__(self, network, layer_name="layer4.1.bn2", image_checkpoint_dir="image_checkpoint"):
+    def __init__(self, network, layer_name="layer4.1.bn2", checkpoint_dir="image_checkpoint"):
         super().__init__()
         self.network = network
         self.layer_name = layer_name
@@ -22,9 +22,9 @@ class GradCAM(LightningModule):
         self.automatic_optimization = False
 
         for dirname in ["image", "cam", "comb"]:
-            if not os.path.exists(os.path.join(image_checkpoint_dir, dirname)):
-                os.makedirs(os.path.join(image_checkpoint_dir, dirname))
-        self.image_checkpoint_dir = image_checkpoint_dir
+            if not os.path.exists(os.path.join(checkpoint_dir, dirname)):
+                os.makedirs(os.path.join(checkpoint_dir, dirname))
+        self.checkpoint_dir = checkpoint_dir
 
     def register_hook(self):
         for name, layer in self.network.named_modules():
@@ -86,8 +86,8 @@ class GradCAM(LightningModule):
 
 
 class SingleImageGradCAM(GradCAM):
-    def __init__(self, network, layer_name="network.layer4.1.bn2", image_checkpoint_dir="image_checkpoint"):
-        super().__init__(network, layer_name, image_checkpoint_dir)
+    def __init__(self, network, layer_name="network.layer4.1.bn2", checkpoint_dir="image_checkpoint"):
+        super().__init__(network, layer_name, checkpoint_dir)
 
     def checkpoint_image(self, x, y, resized_cam, name):
         if y != 0:
@@ -104,14 +104,14 @@ class SingleImageGradCAM(GradCAM):
             if name.split(".")[-1] != "jpg":
                 name = ".".join(name.split(".")[:-1]) + ".jpg"
             skimage.io.imsave(
-                os.path.join(self.image_checkpoint_dir, "image", name),
+                os.path.join(self.checkpoint_dir, "image", name),
                 image
             )
             skimage.io.imsave(
-                os.path.join(self.image_checkpoint_dir, "cam", name),
+                os.path.join(self.checkpoint_dir, "cam", name),
                 resized_cam
             )
             skimage.io.imsave(
-                os.path.join(self.image_checkpoint_dir, "comb", name),
+                os.path.join(self.checkpoint_dir, "comb", name),
                 comb
             )
