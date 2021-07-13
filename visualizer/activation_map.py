@@ -3,11 +3,13 @@ import numpy as np
 from pytorch_lightning import LightningModule
 
 
-__all__ = ["ActivationMap"]
+__all__ = [
+    "ActivationMap",
+]
 
 
 class ActivationMap(LightningModule):
-    def __init__(self, network, layer_names=[], activation_checkpoint_dir="activation_checkpoint"):
+    def __init__(self, network, layer_names=[], checkpoint_dir="activation_checkpoint"):
         super().__init__()
         self.network = network
         self.layer_names = layer_names
@@ -15,9 +17,9 @@ class ActivationMap(LightningModule):
         self.automatic_optimization = False
 
         for dirname in layer_names:
-            if not os.path.exists(os.path.join(activation_checkpoint_dir, dirname)):
-                os.makedirs(os.path.join(activation_checkpoint_dir, dirname))
-        self.activation_checkpoint_dir = activation_checkpoint_dir
+            if not os.path.exists(os.path.join(checkpoint_dir, dirname)):
+                os.makedirs(os.path.join(checkpoint_dir, dirname))
+        self.checkpoint_dir = checkpoint_dir
 
     def register_hook(self):
         for name, layer in self.network.named_modules():
@@ -42,7 +44,7 @@ class ActivationMap(LightningModule):
                 activation = self.activations[layer][0][i]
                 image_name = ".".join(name[i].split(".")[:-1]) + ".npy"
                 np.save(
-                    os.path.join(self.activation_checkpoint_dir, layer, image_name),
+                    os.path.join(self.checkpoint_dir, layer, image_name),
                     activation.cpu().detach().numpy()
                 )
 
