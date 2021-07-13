@@ -2,9 +2,9 @@ import os, sys
 import glob
 import pytest
 import torch
-from torch.utils.data import DataLoader
-import albumentations as A
 import torchmetrics
+import albumentations as A
+from torch.utils.data import DataLoader
 from pytorch_lightning import Trainer
 from pytorch_lightning.loggers import TensorBoardLogger
 from pytorch_lightning.callbacks import LearningRateMonitor
@@ -13,15 +13,15 @@ from pytorch_lightning.callbacks import LearningRateMonitor
 PATH = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, os.path.join(PATH, *[".."]*3))
 import config
-from vision.annotation import *
-from vision.dataset import *
-from vision.transform import *
-from vision.sampler import *
-from task.segmentation import *
-from network.segmentation.gcn import *
-from learner.criterion import *
-from learner.optimizer import *
-from callback.checkpointer import *
+from vision.annotation import SingleImageAnnotation
+from vision.dataset import SegmentationDataset
+from vision.transform import To3channel, ToTensor
+from vision.sampler import WeightedSampler
+from task.segmentation import Segmentation
+from network.segmentation.gcn import GCResNet18
+from learner.criterion import CrossEntropyLoss2d
+from learner.optimizer import Adam
+from callback.checkpointer import ModelCheckpoint
 
 
 @pytest.fixture
