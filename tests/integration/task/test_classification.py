@@ -66,12 +66,10 @@ def dataloaders():
         ]
     )
 
-    sampler = WeightedSampler([1,1])
-
     train_dataloader = DataLoader(
         train_dataset,
         batch_size=32,
-        sampler=sampler(train_dataset),
+        sampler=WeightedSampler(train_annotation, [1,1]),
         shuffle=False,
         num_workers=4,
         pin_memory=True
