@@ -4,28 +4,17 @@ import pytest
 PATH = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, os.path.join(PATH, *[".."]*3))
 import config
-from vision.annotation import SingleImageAnnotation
 from vision.sampler import WeightedSampler
+from tests.fixture import (
+    dataset_paths,
+    testset_paths,
+    testset_annotation
+)
 
 
-@pytest.fixture
-def dataset_path():
-    path = os.path.join(config.DATA_DIR, "public", "DAGM", "original")
-    image_dirpath = os.path.join(path, "image")
-    annotation_filepath = os.path.join(path, "annotation", "domain1.single_image.2class.json")
-    imageset_filepath = os.path.join(path, "imageset", "domain1.single_image.2class", "public", "ratio", "100%", "test.txt")
-    seg_label_dirpath = os.path.join(path, "mask", "original.2class")
-    return [image_dirpath, annotation_filepath, imageset_filepath, seg_label_dirpath]
-
-@pytest.fixture
-def annotation(dataset_path):
-    _annotation = SingleImageAnnotation(num_classes=2)
-    _annotation.from_research_format(*dataset_path)
-    return _annotation
-
-def test_WeightedSampler(annotation):
+def test_WeightedSampler(testset_annotation):
     # create sampler
-    sampler = WeightedSampler(annotation, weights=[3,1])
+    sampler = WeightedSampler(testset_annotation, weights=[3,1])
 
     # sanity check dataset
     assert len(sampler.subsets) == 2

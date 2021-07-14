@@ -10,22 +10,16 @@ import config
 from vision.annotation import *
 from vision.dataset import *
 from vision.transform import *
+from tests.fixture import (
+    dataset_paths,
+    testset_paths,
+    testset_annotation
+)
 
 
-@pytest.fixture
-def dataset_path():
-    path = os.path.join(config.DATA_DIR, "public", "DAGM", "original")
-    image_dirpath = os.path.join(path, "image")
-    annotation_filepath = os.path.join(path, "annotation", "domain1.single_image.2class.json")
-    imageset_filepath = os.path.join(path, "imageset", "domain1.single_image.2class", "public", "ratio", "100%", "test.txt")
-    seg_label_dirpath = os.path.join(path, "mask", "original.2class")
-    return [image_dirpath, annotation_filepath, imageset_filepath, seg_label_dirpath]
-
-def test_ClassificationDataset_1(dataset_path):
-    annotation = SingleImageAnnotation(num_classes=2)
-    annotation.from_research_format(*dataset_path)
+def test_ClassificationDataset_1(testset_annotation):
     dataset = ClassificationDataset(
-        annotation,
+        testset_annotation,
         transforms=[],
         one_hot=False
     )
@@ -37,11 +31,9 @@ def test_ClassificationDataset_1(dataset_path):
     assert isinstance(y, int)
     assert isinstance(name, str)
 
-def test_ClassificationDataset_2(dataset_path):
-    annotation = SingleImageAnnotation(num_classes=2)
-    annotation.from_research_format(*dataset_path)
+def test_ClassificationDataset_2(testset_annotation):
     dataset = ClassificationDataset(
-        annotation,
+        testset_annotation,
         transforms=[ToTensor()],
         one_hot=False
     )
@@ -53,11 +45,9 @@ def test_ClassificationDataset_2(dataset_path):
     assert isinstance(y, int)
     assert isinstance(name, str)
 
-def test_ClassificationDataset_3(dataset_path):
-    annotation = SingleImageAnnotation(num_classes=2)
-    annotation.from_research_format(*dataset_path)
+def test_ClassificationDataset_3(testset_annotation):
     dataset = ClassificationDataset(
-        annotation,
+        testset_annotation,
         transforms=[ToTensor()],
         one_hot=False
     )
@@ -81,11 +71,9 @@ def test_ClassificationDataset_3(dataset_path):
         break
 
 @pytest.mark.parametrize("batch_size", [4,8])
-def test_ClassificationDataset_4(dataset_path, batch_size):
-    annotation = SingleImageAnnotation(num_classes=2)
-    annotation.from_research_format(*dataset_path)
+def test_ClassificationDataset_4(testset_annotation, batch_size):
     dataset = ClassificationDataset(
-        annotation,
+        testset_annotation,
         transforms=[ToTensor()],
         one_hot=False
     )
@@ -106,11 +94,9 @@ def test_ClassificationDataset_4(dataset_path, batch_size):
 # SegmentationDataset #
 #######################
 
-def test_SegmentationDataset_1(dataset_path):
-    annotation = SingleImageAnnotation(num_classes=2)
-    annotation.from_research_format(*dataset_path)
+def test_SegmentationDataset_1(testset_annotation):
     dataset = SegmentationDataset(
-        annotation,
+        testset_annotation,
         transforms=[],
         one_hot=False
     )
@@ -124,11 +110,9 @@ def test_SegmentationDataset_1(dataset_path):
     assert x.dtype == np.uint8
     assert isinstance(name, str)
 
-def test_SegmentationDataset_2(dataset_path):
-    annotation = SingleImageAnnotation(num_classes=2)
-    annotation.from_research_format(*dataset_path)
+def test_SegmentationDataset_2(testset_annotation):
     dataset = SegmentationDataset(
-        annotation,
+        testset_annotation,
         transforms=[ToTensor()],
         one_hot=False
     )
@@ -142,11 +126,9 @@ def test_SegmentationDataset_2(dataset_path):
     assert y.dtype == torch.uint8
     assert isinstance(name, str)
 
-def test_SegmentationDataset_3(dataset_path):
-    annotation = SingleImageAnnotation(num_classes=2)
-    annotation.from_research_format(*dataset_path)
+def test_SegmentationDataset_3(testset_annotation):
     dataset = SegmentationDataset(
-        annotation,
+        testset_annotation,
         transforms=[ToTensor()],
         one_hot=False
     )
@@ -170,11 +152,9 @@ def test_SegmentationDataset_3(dataset_path):
         break
 
 @pytest.mark.parametrize("batch_size", [4,8])
-def test_SegmentationDataset_4(dataset_path, batch_size):
-    annotation = SingleImageAnnotation(num_classes=2)
-    annotation.from_research_format(*dataset_path)
+def test_SegmentationDataset_4(testset_annotation, batch_size):
     dataset = SegmentationDataset(
-        annotation,
+        testset_annotation,
         transforms=[ToTensor()],
         one_hot=False
     )
@@ -190,17 +170,3 @@ def test_SegmentationDataset_4(dataset_path, batch_size):
         assert y.shape == torch.Size([batch_size,512,512])
         assert len(name) == batch_size
         break
-
-
-if __name__ == "__main__":
-    path = os.path.join(config.DATA_DIR, "public", "DAGM", "original")
-    image_dirpath = os.path.join(path, "image")
-    annotation_filepath = os.path.join(path, "annotation", "domain1.single_image.2class.json")
-    imageset_filepath = os.path.join(path, "imageset", "domain1.single_image.2class", "public", "ratio", "100%", "test.txt")
-    seg_label_dirpath = os.path.join(path, "mask", "original.2class")
-
-
-    anno = SingleImageAnnotation(num_classes=2)
-    anno.from_research_format(image_dirpath, annotation_filepath, imageset_filepath, seg_label_dirpath)
-    dataset = ClassificationDataset(anno, transforms=[])
-    from IPython import embed; embed(); assert False

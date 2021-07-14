@@ -1,7 +1,6 @@
 import os, sys
 import pytest
 import torch
-from torch.utils.data import DataLoader
 from pytorch_lightning import Trainer
 
 PATH = os.path.dirname(os.path.abspath(__file__))
@@ -11,8 +10,8 @@ from visualizer.activation_map import ActivationMap
 from tests.integration.visualizer.fixture import *
 
 
-def test_ActivationMap(dataloaders, ckpt_path):
-    train_dataloader, valid_dataloader, test_dataloader = dataloaders
+def test_ActivationMap(cla_dataloaders, ckpt_path):
+    train_dataloader, valid_dataloader, test_dataloader = cla_dataloaders
 
     network = ResNet18(num_classes=2)
     model = ActivationMap(

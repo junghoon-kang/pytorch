@@ -17,18 +17,11 @@ def to_one_hot_image(image, num_classes=2):
         one_hot[c][np.where(image==c)] = 1
     return one_hot
 
-@pytest.fixture
-def dataset_path():
+def test_IoU():
     path = os.path.join(config.DATA_DIR, "public", "DAGM", "original")
-    image_dirpath = os.path.join(path, "image")
-    annotation_filepath = os.path.join(path, "annotation", "domain1.single_image.2class.json")
-    imageset_filepath = os.path.join(path, "imageset", "domain1.single_image.2class", "public", "ratio", "100%", "test.txt")
     seg_label_dirpath1 = os.path.join(path, "mask", "labeler.2class")
     seg_label_dirpath2 = os.path.join(path, "mask", "original.2class")
-    return [image_dirpath, annotation_filepath, imageset_filepath, seg_label_dirpath1, seg_label_dirpath2]
 
-def test_IoU(dataset_path):
-    _, _, _, seg_label_dirpath1, seg_label_dirpath2 = dataset_path
     true = imread(os.path.join(seg_label_dirpath1, "domain1.test.NG.0002.png"))
     pred = imread(os.path.join(seg_label_dirpath2, "domain1.test.NG.0002.png"))
 
