@@ -26,7 +26,10 @@ Task(Network, Criterion, Optimizer, Scheduler, Regulerizer, Metrics)
 DataLoader(Dataset, Sampler)
 
 Dataset(Annotation, [Transform])
-    # TODO: prefetch minibatch, preprocess
+    # TODO:
+    # - prefetch minibatch
+    # - pre-transforms
+    # - HPO using Ray Tune
     ClassificationDataset()
     SegmentationDataset()
 
@@ -49,8 +52,7 @@ Sampler()
 GradCAM(Network, layer_name)
     Trainer.fit(GradCAM, DataLoader) -> Result() path
     # cannot use Trainer.test as we need backward gradient
-    # and backward gradient can be acquired from training phase only
-    # TODO: check again
+    # and backward gradient can be only acquired from training phase
 
 ActivationMap(Network, layer_names)
     Trainer.fit(ActivationMap, DataLoader) -> Result() path
