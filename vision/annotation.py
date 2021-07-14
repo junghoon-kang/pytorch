@@ -31,7 +31,7 @@ class ImageAnnotationSingleton(object):
         self._seg_label = seg_label
 
     def __repr__(self):
-        return f"Object(image='{self.image}', cla_label='{self.cla_label}', seg_label='{self.seg_label}')"
+        return f"(image='{self.image}', cla_label='{self.cla_label}', seg_label='{self.seg_label}')"
 
     @property
     def image(self):
