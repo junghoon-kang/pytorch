@@ -24,64 +24,23 @@ def shuffle(*arys):
 
 
 class RandomSampler(torch.utils.data.Sampler):
-    def __init__(self):
-        pass
-
-    def __call__(self, dataset):
-        self.size = len(dataset)
-        return self
+    def __init__(self, annotation):
+        self.annotation = annotation
 
     def __iter__(self):
-        indices = list(range(self.size))
+        indices = list(range(len(self.annotation)))
         return iter(shuffle(indices))
 
     def __len__(self):
-        return self.size
-
-
-class WeightedSampler2(torch.utils.data.WeightedRandomSampler):
-    def __init__(self, annotation, class_weights=None):
-        self.annotation = annotation
-        self.class_weights = self.get_class_weights(annotation, class_weights)
-        self.class_counts = self.get_class_counts(annotation)
-        super(WeightedSampler2, self).__init__(
-            self.get_sample_weights(annotation, self.class_weights, self.class_counts),
-            len(annotation),
-            replacement=True,
-            generator=None
-        )
-
-    def get_class_weights(self, annotation, class_weights):
-        if class_weights is None:
-            return [ 1 for i in range(annotation.num_classes) ]
-        else:
-            assert len(class_weights) == annotation.num_classes
-            return class_weights
-
-    def get_class_counts(self, annotation):
-        class_counts = []
-        for c in range(annotation.num_classes):
-            class_counts.append( len([ a for a in annotation if a.cla_label == c ]) )
-        return class_counts
-
-    def get_sample_weights(self, annotation, class_weights, class_counts):
-        sample_weights = []
-        for a in annotation:
-            weight = class_weights[a.cla_label]
-            count = class_counts[a.cla_label]
-            sample_weights.append( weight / count )
-        return sample_weights
+        return len(self.annotation)
 
 
 class WeightedSampler(torch.utils.data.Sampler):
-    def __init__(self, weights=None):
-        self.weights = weights
-
-    def __call__(self, dataset):
-        self.subsets = self.get_subsets(dataset.annotation)
-        self.weights = self.set_weights(self.weights, dataset.num_classes)
+    def __init__(self, annotation, weights=None):
+        self.annotation = annotation
+        self.subsets = self.get_subsets(annotation)
+        self.weights = self.set_weights(weights, annotation.num_classes)
         self.weighted_subset_sizes = self.get_weighted_subset_sizes(self.subsets, self.weights)
-        return self
 
     def __iter__(self):
         indices = []
@@ -144,3 +103,37 @@ class WeightedSampler(torch.utils.data.Sampler):
         q = weighted_subset_size // subset_size
         r = weighted_subset_size % subset_size
         return q * subset + np.random.choice(subset, r, replace=False).tolist()
+
+
+class WeightedSampler2(torch.utils.data.WeightedRandomSampler):
+    def __init__(self, annotation, class_weights=None):
+        self.annotation = annotation
+        self.class_weights = self.get_class_weights(annotation, class_weights)
+        self.class_counts = self.get_class_counts(annotation)
+        super(WeightedSampler2, self).__init__(
+            self.get_sample_weights(annotation, self.class_weights, self.class_counts),
+            len(annotation),
+            replacement=True,
+            generator=None
+        )
+
+    def get_class_weights(self, annotation, class_weights):
+        if class_weights is None:
+            return [ 1 for i in range(annotation.num_classes) ]
+        else:
+            assert len(class_weights) == annotation.num_classes
+            return class_weights
+
+    def get_class_counts(self, annotation):
+        class_counts = []
+        for c in range(annotation.num_classes):
+            class_counts.append( len([ a for a in annotation if a.cla_label == c ]) )
+        return class_counts
+
+    def get_sample_weights(self, annotation, class_weights, class_counts):
+        sample_weights = []
+        for a in annotation:
+            weight = class_weights[a.cla_label]
+            count = class_counts[a.cla_label]
+            sample_weights.append( weight / count )
+        return sample_weights
