@@ -6,9 +6,6 @@ import numpy as np
 import albumentations as A
 from typing import Sequence
 
-import numpy as np
-from skimage.io import imsave
-
 
 __all__ = [
     "ToTensor",
@@ -17,6 +14,7 @@ __all__ = [
     "RandomCrop",
     "Cutout",
     "Distort",
+    "PixelBin",
 ]
 
 
@@ -595,6 +593,72 @@ class Distort(A.DualTransform):
             "grid_size": self.grid_size,
             "magnitude": self.magnitude,
         }
+
+class PixelBin(A.ImageOnlyTransform):
+    def __init__(self, centroids, num_bins=8, always_apply=False, p=0.5):
+        super(PixelBin, self).__init__(always_apply=always_apply, p=p)
+        self.centroids = centroids
+
+    def get_params(self):
+        return {}
+
+    @property
+    def targets_as_params(self):
+        return ["name"]
+
+    def get_params_dependent_on_targets(self, params):
+        centroids = self.centroids[params["name"]]
+        lut = self.get_lut(centroids)
+        return {"lut": lut}
+
+    @property
+    def targets(self):
+        return { "image": self.apply }
+
+    def apply(self, image, **params):
+        if np.ndim(image) == 2:
+            return params["lut"][0][image]
+        else:
+            out = []
+            for c in range(image.shape[2]):
+                out.append( params["lut"][c][image[c]] )
+            return np.ascontiguousarray(np.dstack(out))
+
+    def get_transform_init_args_names(self):
+        return {
+            "centroids": self.centroids
+        }
+
+    def get_lut(self, centroids_list):
+        ret = []
+        for centroids in centroids_list:
+            ranges = []
+            for i in range(len(centroids)):
+                if i == 0:
+                    l = 0
+                    c = centroids[i]
+                    if i + 1 == len(centroids):
+                        r = 255
+                        ranges.append([0,255])
+                    else:
+                        r = centroids[i+1]
+                        ranges.append([0, (c+r)//2])
+                else:
+                    l = centroids[i-1]
+                    c = centroids[i]
+                    if i + 1 == len(centroids):
+                        r = 255
+                        ranges.append([(l+c)//2+1, 255])
+                    else:
+                        r = centroids[i+1]
+                        ranges.append([(l+c)//2+1, (c+r)//2])
+
+            lut = []
+            for i, (l, r) in enumerate(ranges):
+                for j in range(int(l), int(r+1)):
+                    lut.append(np.round(centroids[i]))
+            ret.append( np.array(lut, dtype=np.uint8) )
+        return ret
 
 
 def is_sequence_of_two_positive_numbers(seq, name=""):
