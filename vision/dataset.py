@@ -89,7 +89,12 @@ class ClassificationDataset(ImageDataset):
                 seg_label = skimage.io.imread(seg_label_filepath).astype(np.uint8)
             else:
                 seg_label = np.zeros(image.shape[:2], dtype=np.uint8)
-            transformed = self.transforms(image=image, mask=seg_label, cla_label=cla_label)
+            transformed = self.transforms(
+                image=image,
+                mask=seg_label,
+                cla_label=cla_label,
+                name=os.path.basename(image_filepath)
+            )
         image = transformed["image"]
 
         if self.one_hot:
@@ -130,7 +135,12 @@ class SegmentationDataset(ImageDataset):
                 seg_label = skimage.io.imread(seg_label_filepath).astype(np.uint8)
             else:
                 seg_label = np.zeros(image.shape[:2], dtype=np.uint8)
-            transformed = self.transforms(image=image, mask=seg_label, cla_label=cla_label)
+            transformed = self.transforms(
+                image=image,
+                mask=seg_label,
+                cla_label=cla_label,
+                name=os.path.basename(image_filepath)
+            )
         image, seg_label = transformed["image"], transformed["mask"]
 
         if self.one_hot:
