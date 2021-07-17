@@ -63,7 +63,7 @@ class SingleImageAnnotation(list):
         with open(annotation_filepath, "r") as f:
             annotation = json.loads(f.read())
         with open(imageset_filepath, "r") as f:
-            for line in f.read().splitlines():
+            for line in sorted(f.read().splitlines()):
                 image_filepath = os.path.join(image_dirpath, line)
                 cla_label = annotation["single_image"][line]["class"][0]  # TODO: need to handle soft-label and multi-label
                 seg_label_filepath  = None if seg_label_dirpath is None else os.path.join(seg_label_dirpath, line)
