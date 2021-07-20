@@ -667,13 +667,12 @@ class RandomPad(A.DualTransform):
         self,
         height,
         width,
-        border_mode=cv2.BORDER_REFLECT_101,
-        value=None
+        always_apply=False,
+        p=0.5
     ):
+        super(RandomPad, self).__init__(always_apply=always_apply, p=p)
         self.height = height
         self.width = width
-        self.border_mode = border_mode
-        self.value = value
 
     def get_params(self):
         return {}
@@ -708,16 +707,13 @@ class RandomPad(A.DualTransform):
         }
 
     def apply(self, image, **params):
-        return cv2.copyMakeBorder(image, *params["pads"], self.border_mode, self.value)
+        return cv2.copyMakeBorder(image, *params["pads"], cv2.BORDER_CONSTANT, 0)
 
     def get_transform_init_args_names(self):
         return {
             "height": self.height,
             "width": self.width,
-            "border_mode": self.border_mode,
-            "value": self.value,
         }
-
 
 
 def is_sequence_of_two_positive_numbers(seq, name=""):
