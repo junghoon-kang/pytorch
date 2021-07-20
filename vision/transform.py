@@ -15,6 +15,7 @@ __all__ = [
     "Cutout",
     "Distort",
     "PixelBin",
+    "RandomPad",
 ]
 
 
@@ -659,6 +660,64 @@ class PixelBin(A.ImageOnlyTransform):
                     lut.append(np.round(centroids[i]))
             ret.append( np.array(lut, dtype=np.uint8) )
         return ret
+
+
+class RandomPad(A.DualTransform):
+    def __init__(
+        self,
+        height,
+        width,
+        border_mode=cv2.BORDER_REFLECT_101,
+        value=None
+    ):
+        self.height = height
+        self.width = width
+        self.border_mode = border_mode
+        self.value = value
+
+    def get_params(self):
+        return {}
+
+    @property
+    def targets_as_params(self):
+        return ["image"]
+
+    def get_params_dependent_on_targets(self, params):
+        h, w = params["image"].shape[:2]
+        if h < self.height:
+            top = np.random.randint(0, self.height - h + 1)
+            bottom = self.height - h - top
+        else:
+            top = 0
+            bottom = 0
+
+        if w < self.width:
+            left = np.random.randint(0, self.width - w + 1)
+            right = self.width - w - left
+        else:
+            left = 0
+            right = 0
+        pads = (top, bottom, left, right)
+        return {"pads": pads}
+
+    @property
+    def targets(self):
+        return {
+            "image": self.apply,
+            "mask": self.apply_to_mask
+        }
+
+    def apply(self, image, **params):
+        return cv2.copyMakeBorder(image, *params["pads"], self.border_mode, self.value)
+
+    def get_transform_init_args_names(self):
+        return {
+            "height": self.height,
+            "width": self.width,
+            "border_mode": self.border_mode,
+            "value": self.value,
+        }
+
 
 
 def is_sequence_of_two_positive_numbers(seq, name=""):
