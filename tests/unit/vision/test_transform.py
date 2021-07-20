@@ -490,31 +490,45 @@ def test_RandomCrop_3(samples):
 
 ####################################################################################################
 if __name__ == "__main__":
-    h, w = 512, 512
-    image = np.full((h,w), fill_value=50, dtype=np.uint8)
-    label = np.zeros((h,w), dtype=np.uint8)
-    random.seed(47)
+    from skimage.io import imsave
+
+    ### checkerboard
+    N = 512
+    n = 64
+    if N % (2 * n) != 0:
+        raise ValueError("N % (2 * n) != 0")
+    image = np.concatenate((
+        np.zeros(n, dtype=np.uint8),
+        np.ones(n, dtype=np.uint8),
+    ))
+    image = np.pad(image, int(N**2 / 2 - n), mode="wrap").reshape((N,N))
+    image = (image + image.T == 1).astype(np.uint8)
+    image[np.where(image == 1)] = 255
+    label = np.zeros((N,N), dtype=np.uint8)
+
+    ### draw rectangular defect
     image, label = draw_rectangle(image, label, (128,128))
 
+    ### apply augmentation
     result = A.Compose([
-        Cutout(
-            patterns=[
-                dict(name="rectangle", size=(256//4,256//4), max_coverage_ratio=0.5),
-                dict(name="rectangle", size=(256//2,256//2), max_coverage_ratio=0.5),
-                dict(name="rectangle", size=(256,256), max_coverage_ratio=0.5),
-            ],
-            always_apply=True
-        )
+        RandomPad(1024, 1024, always_apply=True)
+        #Cutout(
+        #    patterns=[
+        #        dict(name="rectangle", size=(256//4,256//4), max_coverage_ratio=0.5),
+        #        dict(name="rectangle", size=(256//2,256//2), max_coverage_ratio=0.5),
+        #        dict(name="rectangle", size=(256,256), max_coverage_ratio=0.5),
+        #    ],
+        #    always_apply=True
+        #)
     ])(image=image, mask=label, cla_label=1)
     out_image = result["image"]
     out_label = result["mask"]
 
-    #from skimage.io import imsave
+    ### save images and labels
     #label[np.where(label==1)] = 255
     #out_label[np.where(out_label==1)] = 255
-    #imsave("image.png", image)
-    #imsave("label.png", label)
     #imsave("out_image.png", out_image)
     #imsave("out_label.png", out_label)
-
-    from IPython import embed; embed(); assert False
+    #imsave("image.png", image)
+    #imsave("label.png", label)
+    #from IPython import embed; embed(); assert False
