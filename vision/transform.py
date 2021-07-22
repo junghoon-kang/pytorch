@@ -687,6 +687,9 @@ class RandomPad(A.DualTransform):
     def get_params_dependent_on_targets(self, params):
         h, w = params["image"].shape[:2]
         H, W = self.size
+        if h == H and w == W:
+            return {"pads": None}
+
         if h < H:
             top = np.random.randint(0, H - h + 1)
             bottom = H - h - top
@@ -711,10 +714,14 @@ class RandomPad(A.DualTransform):
         }
 
     def apply(self, image, **params):
+        if params["pads"] is None:
+            return image
         return cv2.copyMakeBorder(image, *params["pads"], cv2.BORDER_CONSTANT, 0)
 
-    def apply_to_mask(self, image, **params):
-        return cv2.copyMakeBorder(image, *params["pads"], cv2.BORDER_CONSTANT, 0)
+    def apply_to_mask(self, mask, **params):
+        if params["pads"] is None:
+            return mask
+        return cv2.copyMakeBorder(mask, *params["pads"], cv2.BORDER_CONSTANT, 0)
 
     def get_transform_init_args_names(self):
         return {
@@ -743,6 +750,9 @@ class RandomNoisePad(A.DualTransform):
     def get_params_dependent_on_targets(self, params):
         h, w = params["image"].shape[:2]
         H, W = self.size
+        if h == H and w == W:
+            return {"pads": None}
+
         if h < H:
             top = np.random.randint(0, H - h + 1)
             bottom = H - h - top
@@ -767,6 +777,9 @@ class RandomNoisePad(A.DualTransform):
         }
 
     def apply(self, image, **params):
+        if params["pads"] is None:
+            return image
+
         top, bottom, left, right = params["pads"]
         h, w = image.shape[:2]
         if np.ndim(image) == 2:
@@ -777,8 +790,10 @@ class RandomNoisePad(A.DualTransform):
             result[top:top+h, left:left+w, :] = image
         return result
 
-    def apply_to_mask(self, image, **params):
-        return cv2.copyMakeBorder(image, *params["pads"], cv2.BORDER_CONSTANT, 0)
+    def apply_to_mask(self, mask, **params):
+        if params["pads"] is None:
+            return mask
+        return cv2.copyMakeBorder(mask, *params["pads"], cv2.BORDER_CONSTANT, 0)
 
     def get_transform_init_args_names(self):
         return {
