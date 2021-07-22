@@ -511,7 +511,7 @@ if __name__ == "__main__":
 
     ### apply augmentation
     result = A.Compose([
-        RandomPad(1024, 1024, always_apply=True)
+        RandomNoisePad((1024, 1024), always_apply=True)
         #Cutout(
         #    patterns=[
         #        dict(name="rectangle", size=(256//4,256//4), max_coverage_ratio=0.5),
@@ -525,10 +525,10 @@ if __name__ == "__main__":
     out_label = result["mask"]
 
     ### save images and labels
-    #label[np.where(label==1)] = 255
-    #out_label[np.where(out_label==1)] = 255
-    #imsave("out_image.png", out_image)
-    #imsave("out_label.png", out_label)
-    #imsave("image.png", image)
-    #imsave("label.png", label)
-    #from IPython import embed; embed(); assert False
+    label[np.where(label==1)] = 255
+    out_label[np.where(out_label==1)] = 255
+    imsave("out_image.png", out_image)
+    imsave("out_label.png", out_label)
+    imsave("image.png", image)
+    imsave("label.png", label)
+    from IPython import embed; embed(); assert False
