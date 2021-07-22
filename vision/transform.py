@@ -16,6 +16,7 @@ __all__ = [
     "Distort",
     "PixelBin",
     "RandomPad",
+    "RandomNoisePad",
 ]
 
 
@@ -327,6 +328,9 @@ class Distort(A.DualTransform):
         always_apply=False,
         p=0.5
     ):
+        is_sequence_of_two_positive_numbers(grid_size, name="grid_size")
+        if not isinstance(magnitude, int):
+            raise TypeError(f"magnitude must be an integer value")
         super(Distort, self).__init__(always_apply=always_apply, p=p)
         self.grid_size = grid_size
         self.magnitude = magnitude
@@ -665,14 +669,13 @@ class PixelBin(A.ImageOnlyTransform):
 class RandomPad(A.DualTransform):
     def __init__(
         self,
-        height,
-        width,
+        size,
         always_apply=False,
         p=0.5
     ):
+        is_sequence_of_two_positive_numbers(size, name="size")
         super(RandomPad, self).__init__(always_apply=always_apply, p=p)
-        self.height = height
-        self.width = width
+        self.size = size
 
     def get_params(self):
         return {}
@@ -683,16 +686,17 @@ class RandomPad(A.DualTransform):
 
     def get_params_dependent_on_targets(self, params):
         h, w = params["image"].shape[:2]
-        if h < self.height:
-            top = np.random.randint(0, self.height - h + 1)
-            bottom = self.height - h - top
+        H, W = self.size
+        if h < H:
+            top = np.random.randint(0, H - h + 1)
+            bottom = H - h - top
         else:
             top = 0
             bottom = 0
 
-        if w < self.width:
-            left = np.random.randint(0, self.width - w + 1)
-            right = self.width - w - left
+        if w < W:
+            left = np.random.randint(0, W - w + 1)
+            right = W - w - left
         else:
             left = 0
             right = 0
@@ -709,10 +713,76 @@ class RandomPad(A.DualTransform):
     def apply(self, image, **params):
         return cv2.copyMakeBorder(image, *params["pads"], cv2.BORDER_CONSTANT, 0)
 
+    def apply_to_mask(self, image, **params):
+        return cv2.copyMakeBorder(image, *params["pads"], cv2.BORDER_CONSTANT, 0)
+
     def get_transform_init_args_names(self):
         return {
-            "height": self.height,
-            "width": self.width,
+            "size": self.size
+        }
+
+
+class RandomNoisePad(A.DualTransform):
+    def __init__(
+        self,
+        size,
+        always_apply=False,
+        p=0.5
+    ):
+        is_sequence_of_two_positive_numbers(size, name="size")
+        super(RandomNoisePad, self).__init__(always_apply=always_apply, p=p)
+        self.size = size
+
+    def get_params(self):
+        return {}
+
+    @property
+    def targets_as_params(self):
+        return ["image"]
+
+    def get_params_dependent_on_targets(self, params):
+        h, w = params["image"].shape[:2]
+        H, W = self.size
+        if h < H:
+            top = np.random.randint(0, H - h + 1)
+            bottom = H - h - top
+        else:
+            top = 0
+            bottom = 0
+
+        if w < W:
+            left = np.random.randint(0, W - w + 1)
+            right = W - w - left
+        else:
+            left = 0
+            right = 0
+        pads = (top, bottom, left, right)
+        return {"pads": pads}
+
+    @property
+    def targets(self):
+        return {
+            "image": self.apply,
+            "mask": self.apply_to_mask
+        }
+
+    def apply(self, image, **params):
+        top, bottom, left, right = params["pads"]
+        h, w = image.shape[:2]
+        if np.ndim(image) == 2:
+            result = np.random.randint(0, 256, self.size)
+            result[top:top+h, left:left+w] = image
+        else:
+            result = np.random.randint(0, 256, self.size + (image.shape[2],))
+            result[top:top+h, left:left+w, :] = image
+        return result
+
+    def apply_to_mask(self, image, **params):
+        return cv2.copyMakeBorder(image, *params["pads"], cv2.BORDER_CONSTANT, 0)
+
+    def get_transform_init_args_names(self):
+        return {
+            "size": self.size
         }
 
 
